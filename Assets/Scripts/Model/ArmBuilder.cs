@@ -5,25 +5,47 @@ using System.Collections.Generic;
 
 public class ArmBuilder : ModelBuilder
 {
-    void Start()
-    {
-        Initialize();
-    }
 
-    public override void CreateModel()
+    protected override void CreateModel()
     {
-        if (cellPrefab != null)
+        if (CellPrefab != null)
         {
-            for (int i = 0; i < cellCount; ++i)
+            for (int i = 0; i < CellCount; ++i)
             {
-                Cell cell = Instantiate(cellPrefab, this.transform.position, Quaternion.identity);
+                Cell cell = Instantiate(CellPrefab, this.transform.position, Quaternion.identity);
                 if (cell != null)
                 {
                     cell.name = "cell" + i;
                     cell.transform.position = cell.transform.position + new Vector3(0.0f, i * 0.5f, 0.0f);
                     cell.transform.parent = this.transform;
+                    Cells.Add(cell);
                 }
-                cells.Add(cell);
+            }
+            
+            // Link adjacent cells to share vertices
+            // Cell[i+1]'s top (Sphere1-4) = Cell[i]'s bottom (Sphere5-8)
+            for (int i = 0; i < Cells.Count - 1; ++i)
+            {
+                if (Cells[i] != null && Cells[i + 1] != null)
+                {
+                    // Use SetTopVertices first to update references
+                    Cells[i + 1].SetTopVertices(
+                        Cells[i].Sphere5,
+                        Cells[i].Sphere6,
+                        Cells[i].Sphere7,
+                        Cells[i].Sphere8
+                    );
+                    // Then destroy the redundant sphere GameObjects that are no longer referenced
+                    // Note: These spheres are now orphaned since SetTopVertices updated the references
+                    Transform sphere1Transform = Cells[i + 1].transform.Find("Sphere1");
+                    Transform sphere2Transform = Cells[i + 1].transform.Find("Sphere2");
+                    Transform sphere3Transform = Cells[i + 1].transform.Find("Sphere3");
+                    Transform sphere4Transform = Cells[i + 1].transform.Find("Sphere4");
+                    if (sphere1Transform != null) GameObject.DestroyImmediate(sphere1Transform.gameObject);
+                    if (sphere2Transform != null) GameObject.DestroyImmediate(sphere2Transform.gameObject);
+                    if (sphere3Transform != null) GameObject.DestroyImmediate(sphere3Transform.gameObject);
+                    if (sphere4Transform != null) GameObject.DestroyImmediate(sphere4Transform.gameObject);
+                }
             }
         }
 
@@ -32,46 +54,46 @@ public class ArmBuilder : ModelBuilder
     // Initialization methods
     protected override void InitVertices()
     {
-        if (cells[0] != null)
+        if (Cells[0] != null)
         {
-            vertices.Add(cells[0].Sphere1);
-            vertices.Add(cells[0].Sphere2);
-            vertices.Add(cells[0].Sphere3);
-            vertices.Add(cells[0].Sphere4);
+            Vertices.Add(Cells[0].Sphere1);
+            Vertices.Add(Cells[0].Sphere2);
+            Vertices.Add(Cells[0].Sphere3);
+            Vertices.Add(Cells[0].Sphere4);
         }
-        for (int i = 0; i < cells.Count; ++i)
+        for (int i = 0; i < Cells.Count; ++i)
         {
-            if (cells[i] != null)
+            if (Cells[i] != null)
             {
-                vertices.Add(cells[i].Sphere5);
-                vertices.Add(cells[i].Sphere6);
-                vertices.Add(cells[i].Sphere7);
-                vertices.Add(cells[i].Sphere8);
+                Vertices.Add(Cells[i].Sphere5);
+                Vertices.Add(Cells[i].Sphere6);
+                Vertices.Add(Cells[i].Sphere7);
+                Vertices.Add(Cells[i].Sphere8);
             }
         }
     }
 
     protected override void InitVelocities()
     {
-        velocities = Utility.CreateInitializedArray(vertices.Count, new Vector3(0.0f, 0.0f, 0.0f));
+        Velocities = Utility.CreateInitializedArray(Vertices.Count, new Vector3(0.0f, 0.0f, 0.0f));
     }
 
     protected override void InitEdges()
     {
-        if (cells[0] != null)
+        if (Cells[0] != null)
         {
-            edges.Add(cells[0].Edges[0]);
-            edges.Add(cells[0].Edges[1]);
-            edges.Add(cells[0].Edges[2]);
-            edges.Add(cells[0].Edges[3]);
+            Edges.Add(Cells[0].Edges[0]);
+            Edges.Add(Cells[0].Edges[1]);
+            Edges.Add(Cells[0].Edges[2]);
+            Edges.Add(Cells[0].Edges[3]);
         }
-        for (int i = 0; i < cells.Count; ++i)
+        for (int i = 0; i < Cells.Count; ++i)
         {
-            if (cells[i] != null)
+            if (Cells[i] != null)
             {
-                for (int j = 4; j < cells[i].Edges.Count; ++j)
+                for (int j = 4; j < Cells[i].Edges.Count; ++j)
                 {
-                    edges.Add(cells[i].Edges[j]);
+                    Edges.Add(Cells[i].Edges[j]);
                 }
             }
         }
@@ -79,17 +101,17 @@ public class ArmBuilder : ModelBuilder
 
     protected override void InitFaces()
     {
-        if (cells[0] != null)
+        if (Cells[0] != null)
         {
-            faces.Add(cells[0].Faces[0]);
+            Faces.Add(Cells[0].Faces[0]);
         }
-        for (int i = 0; i < cells.Count; ++i)
+        for (int i = 0; i < Cells.Count; ++i)
         {
-            if (cells[i] != null)
+            if (Cells[i] != null)
             {
-                for (int j = 1; j < cells[i].Faces.Count; ++j)
+                for (int j = 1; j < Cells[i].Faces.Count; ++j)
                 {
-                    faces.Add(cells[i].Faces[j]);
+                    Faces.Add(Cells[i].Faces[j]);
                 }
             }
         }
@@ -97,65 +119,65 @@ public class ArmBuilder : ModelBuilder
 
     protected override void InitMasses()
     {
-        masses = new List<float>(vertices.Count);
-        if (cells[0] != null)
+        Masses = new List<float>(Vertices.Count);
+        if (Cells.Count > 0 && Cells[0] != null && Cells[0].Masses != null && Cells[0].Masses.Length >= 4)
         {
-            masses.Add(cells[0].Masses[0]);
-            masses.Add(cells[0].Masses[1]);
-            masses.Add(cells[0].Masses[2]);
-            masses.Add(cells[0].Masses[3]);
+            Masses.Add(Cells[0].Masses[0]);
+            Masses.Add(Cells[0].Masses[1]);
+            Masses.Add(Cells[0].Masses[2]);
+            Masses.Add(Cells[0].Masses[3]);
         }
-        for (int i = 0; i < cells.Count; ++i)
+        for (int i = 0; i < Cells.Count; ++i)
         {
-            if (cells[i] != null)
+            if (Cells[i] != null && Cells[i].Masses != null && Cells[i].Masses.Length >= 8)
             {
-                masses.Add(cells[i].Masses[4]);
-                masses.Add(cells[i].Masses[5]);
-                masses.Add(cells[i].Masses[6]);
-                masses.Add(cells[i].Masses[7]);
+                Masses.Add(Cells[i].Masses[4]);
+                Masses.Add(Cells[i].Masses[5]);
+                Masses.Add(Cells[i].Masses[6]);
+                Masses.Add(Cells[i].Masses[7]);
             }
         }
     }
 
     protected override void InitVertexDamping()
     {
-        vertexDamping = new List<float>(vertices.Count);
-        if (cells[0] != null)
+        VertexDamping = new List<float>(Vertices.Count);
+        if (Cells[0] != null)
         {
-            vertexDamping.Add(cells[0].VertexDamping[0]);
-            vertexDamping.Add(cells[0].VertexDamping[1]);
-            vertexDamping.Add(cells[0].VertexDamping[2]);
-            vertexDamping.Add(cells[0].VertexDamping[3]);
+            VertexDamping.Add(Cells[0].VertexDamping[0]);
+            VertexDamping.Add(Cells[0].VertexDamping[1]);
+            VertexDamping.Add(Cells[0].VertexDamping[2]);
+            VertexDamping.Add(Cells[0].VertexDamping[3]);
         }
-        for (int i = 0; i < cells.Count; ++i)
+        for (int i = 0; i < Cells.Count; ++i)
         {
-            if (cells[i] != null)
+            if (Cells[i] != null)
             {
-                vertexDamping.Add(cells[i].VertexDamping[4]);
-                vertexDamping.Add(cells[i].VertexDamping[5]);
-                vertexDamping.Add(cells[i].VertexDamping[6]);
-                vertexDamping.Add(cells[i].VertexDamping[7]);
+                VertexDamping.Add(Cells[i].VertexDamping[4]);
+                VertexDamping.Add(Cells[i].VertexDamping[5]);
+                VertexDamping.Add(Cells[i].VertexDamping[6]);
+                VertexDamping.Add(Cells[i].VertexDamping[7]);
             }
         }
     }
 
     protected override void InitEdgeDamping()
     {
-        edgeDamping = new List<float>(Edges.Count);
-        if (cells[0] != null)
+        EdgeDamping = new List<float>(Edges.Count);
+        if (Cells[0] != null)
         {
-            edgeDamping.Add(cells[0].EdgeDamping[0]);
-            edgeDamping.Add(cells[0].EdgeDamping[1]);
-            edgeDamping.Add(cells[0].EdgeDamping[2]);
-            edgeDamping.Add(cells[0].EdgeDamping[3]);
+            EdgeDamping.Add(Cells[0].EdgeDamping[0]);
+            EdgeDamping.Add(Cells[0].EdgeDamping[1]);
+            EdgeDamping.Add(Cells[0].EdgeDamping[2]);
+            EdgeDamping.Add(Cells[0].EdgeDamping[3]);
         }
-        for (int i = 0; i < cells.Count; ++i)
+        for (int i = 0; i < Cells.Count; ++i)
         {
-            if (cells[i] != null)
+            if (Cells[i] != null)
             {
-                for (int j = 4; j < cells[i].Edges.Count; ++j)
+                for (int j = 4; j < Cells[i].Edges.Count; ++j)
                 {
-                    edgeDamping.Add(cells[i].EdgeDamping[j]);
+                    EdgeDamping.Add(Cells[i].EdgeDamping[j]);
                 }
             }
         }

@@ -1,6 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Mono.Cecil.Cil;
+using Unity.VisualScripting;
 
 // An abstract class for constrained particle dynamics.
 
@@ -18,27 +20,58 @@ using Mono.Cecil.Cil;
 //     constraint_spring_rate: the rate of spring force for the constraints
 public abstract class ConstrainedDynamic : Dynamic
 {
-    ModelBuilder modelBuilder;
-    public ModelBuilder ModelBuilder { get { return modelBuilder; } }
 
     [SerializeField] float constraintDampingRate = 50f;
     [SerializeField] float constraintSpringRate = 50f;
 
+    [SerializeField] float actuationForceScale = 1f;
+    public float ActuationForceScale { get { return actuationForceScale; } }
+    [SerializeField] float explicitForceScale = 1f;
+    public float ExplicitForceScale { get { return explicitForceScale; } }
+    [SerializeField] float reactionForceScale = 1f;
+    public float ReactionForceScale { get { return reactionForceScale; } }
+    [SerializeField] float passiveForceScale = 1f;
+    public float PassiveForceScale { get { return passiveForceScale; } }
+    [SerializeField] float passiveEdgeForceScale = 1f;
+    public float PassiveEdgeForceScale { get { return passiveEdgeForceScale; } }
+    [SerializeField] float externalForceScale = 1f;
+    public float ExternalForceScale { get { return externalForceScale; } }
+
     [SerializeField] List<Constraint> constraints;
-    protected float[] invMasses;
-    protected Vector3[] externalForces;
-    protected int numParticles;
+    private float[] invMasses;
+    public float[] InvMasses { get { return invMasses; } set { invMasses = value; } }
+    private Vector3[] externalForces;
+    public Vector3[] ExternalForces { get { return externalForces; } set { externalForces = value; } }
+    private int numParticles;
+    public int NumParticles { get { return numParticles; } set { numParticles = value; } }
     int statesNum;
+
+    // Ensure critical initialization runs in Awake so other components (like Simulator)
+    // can safely read arrays during their Start methods. Unity calls Awake on all
+    // enabled objects before any Start runs.
+    void Awake()
+    {
+        base.Awake(); // Call parent's Awake to initialize NumControls and NumStates
+        InitNumParticles();
+        InitExternalForces();
+        InitInvMasses();
+        Initconstraints();
+    }
 
     // TODO: implement after environment implementation
     // public void SetEnvironment(Environment environment, float[] state, List<Obstacle> obstacles);
 
-    // TODO: Need to be mified depending on the constraint implementation
-    private void Initconstraints(List<float> initialState)
+    // TODO: Need to be modified depending on the constraint implementation
+    private void Initconstraints()
     {
         foreach (Constraint constraint in constraints)
         {
-            constraint.InitializeConstraint(this, initialState);
+            if (ModelBuilder == null)
+            {
+                UnityEngine.Debug.LogError("ModelBuilder is null when initializing constraints.");
+                continue;
+            }
+            constraint.Initialize(ModelBuilder);
         }
     }
 
@@ -72,87 +105,148 @@ public abstract class ConstrainedDynamic : Dynamic
 
     //     Returns:
     //         An nxd array of total explicit force vectors on the vertices.
-    private List<Vector3> CalcExplicitForces(Vector3[] actuationForces)
+    private Vector3[] CalcExplicitForces(Vector3[] actuationForces)
     {
-        int count = externalForces.Length;
-        List<Vector3> explicitForces = new List<Vector3>(new Vector3[count]);
-
-        List<Vector3> passiveForces = CalcPassiveForces();
-        Vector3 passiveForcesSum = Vector3.zero;
-        foreach (Vector3 passiveForce in passiveForces)
+        if (actuationForces == null)
         {
-            passiveForcesSum += passiveForce;
+            UnityEngine.Debug.LogError("CalcExplicitForces: actuationForces is null.");
+            return null;
+        }
+        // Defensive: handle null external/actuation/passive forces and length mismatches.
+        int count = actuationForces.Length;
+
+        // If we still don't know count, return empty list
+        if (count == 0)
+        {
+            UnityEngine.Debug.LogError("CalcExplicitForces: unable to determine number of vertices; returning null.");
+            return null;
+        }
+
+        Vector3[] explicitForces = new Vector3[count];
+
+        Vector3[] passiveForces = null;
+        if (ModelBuilder != null)
+        {
+            passiveForces = CalcPassiveForces(ModelBuilder.GetPositions(), ModelBuilder.Velocities);
+        }
+        else
+        {
+            UnityEngine.Debug.LogError("ModelBuilder is null in CalcExplicitForces; skipping passive forces calculation.");
+            return null;
         }
         
-        for (int i = 0; i < count; i++)
+
+        // If CalcPassiveForces returned per-vertex forces (length == count), subtract per-vertex.
+        if (passiveForces != null && passiveForces.Length == count)
         {
-            explicitForces[i] = externalForces[i] + actuationForces[i] - passiveForcesSum;
+            for (int i = 0; i < count; i++)
+            {
+                Vector3 externalForce = (externalForces != null && i < externalForces.Length) ? externalForces[i] : Vector3.zero;
+                Vector3 actuationForce = (i < actuationForces.Length) ? actuationForces[i] : Vector3.zero;
+                Vector3 passiveForce = passiveForces[i];
+                explicitForces[i] = externalForce + actuationForce - passiveForce;
+            }
         }
-        return explicitForces;
+        else
+        {
+            UnityEngine.Debug.LogError("CalcExplicitForces: passiveForces length mismatch; returning null.");
+            return null;
+        }
+
+        return Utility.MatrixMultiply<Vector3>(explicitForces, explicitForceScale);
     }
 
-    // private Vector3[] CalcReactionForces(float[] state, Vector3[] explicitForces)
-    // {
-    //     if (constraints == null || constraints.Count == 0)
-    //     {
-    //         Vector3[] zeros = Utility.CreateInitializedArray<Vector3>(externalForces.Length, Vector3.zero);
-    //         return zeros;
-    //     }
+    private Vector3[] CalcReactionForces(float[] state, Vector3[] explicitForces)
+    {
+        if (constraints == null || constraints.Count == 0)
+        {
+            Vector3[] zeros = Utility.CreateInitializedArray<Vector3>(externalForces.Length, Vector3.zero);
+            return zeros;
+        }
 
-    //     // Calculate constraints, jacobian, and jacobian derivative
-    //     (float[] constraintsVec, float[,] jacobian, float[,] jacobianDerivative) = CalcConstraints();
+        // Calculate constraints, jacobian, and jacobian derivative
+        (float[] constraintsVec, float[,] jacobian, float[,] jacobianDerivative) = CalcConstraints();
 
-    //     // invMasses: float[] of length n
-    //     // jacobian: (m, n*3)
-    //     // jacobian.T: (n*3, m)
-    //     // invMasses[:, None] * jacobian.T: (n, m) * (n*3, m) -- need to expand invMasses to match shape
+        // invMasses: float[] of length n
+        // jacobian: (m, n*3)
+        // jacobian.T: (n*3, m)
+        // invMasses[:, None] * jacobian.T: (n, m) * (n*3, m) -- need to expand invMasses to match shape
 
-    //     // Compute front_matrix = jacobian @ (inv_masses[:, None] * jacobian.T)
-    //     float[,] invMassesMatrix = Utility.Diagonalize(invMasses);
-    //     float[,] jacobianT = Utility.Transpose(jacobian);   // (n*3, m)
-    //     float[,] invMassesJacobianT = Utility.MatrixMultiply(jacobianT, invMasses); // (n*3, m)
-    //     float[,] frontMatrix = Utility.MatrixMultiply(jacobian, invMassesJacobianT); // (m, m)
+        // Compute front_matrix = jacobian @ (inv_masses[:, None] * jacobian.T)
+        float[,] invMassesMatrix = Utility.Diagonalize(invMasses);
+        float[,] jacobianTranspose = Utility.Transpose(jacobian);   // (n*3, m)
+        float[,] invMassesJacobianTranspose = Utility.MatrixMultiply(jacobianTranspose, invMassesMatrix); // (n*3, m)
+        float[,] frontMatrix = Utility.MatrixMultiply(jacobian, invMassesJacobianTranspose); // (m, m)
+        // Regularization: front_matrix + eye * 1e-6
+        Utility.AddIdentityInPlace(frontMatrix, 1e-6f);
 
-    //     // Regularization: front_matrix + eye * 1e-6
-    //     Utility.AddIdentityInPlace(frontMatrix, 1e-6f);
+        // dependent_array = -(
+        //     djacobian_dt @ vel.ravel()
+        //     + jacobian @ (inv_masses * explicit_forces.ravel())
+        //     + constraint_damping_rate * jacobian @ vel.ravel()
+        //     + constraint_spring_rate * constraints
+        // )
 
-    //     // dependent_array = -(
-    //     //     djacobian_dt @ vel.ravel()
-    //     //     + jacobian @ (inv_masses * explicit_forces.ravel())
-    //     //     + constraint_damping_rate * jacobian @ vel.ravel()
-    //     //     + constraint_spring_rate * constraints
-    //     // )
+        float[] velocitiesFlat = Utility.Flatten(ModelBuilder.Velocities); // (n*3,)
+        float[] explicitForcesFlat = Utility.Flatten(explicitForces); // (n*3,)
 
-    //     float[] velocitiesFlat = Utility.Flatten(modelBuilder.Velocities); // (n*3,)
-    //     float[] explicitForcesFlat = Utility.Flatten(explicitForces); // (n*3,)
+        float[] invMassesTimesExplicit = Utility.MatrixMultiply(invMasses, explicitForcesFlat); // (n*3,)
+        float[] djacobianDtVel = Utility.MatrixMultiply(jacobianDerivative, velocitiesFlat); // (m,)
+        float[] jacobianInvMassesExplicit = Utility.MatrixMultiply(jacobian, invMassesTimesExplicit); // (m,)
+        float[] jacobianVel = Utility.MatrixMultiply(jacobian, velocitiesFlat); // (m,)
 
-    //     float[] invMassesTimesExplicit = Utility.ElementwiseMultiply(invMasses, explicitForcesFlat); // (n*3,)
-    //     float[] djacobianDtVel = Utility.MatrixMultiply(jacobianDerivative, velocitiesFlat); // (m,)
-    //     float[] jacobianInvMassesExplicit = Utility.MatrixMultiply(jacobian, invMassesTimesExplicit); // (m,)
-    //     float[] jacobianVel = Utility.MatrixMultiply(jacobian, velocitiesFlat); // (m,)
+        float[] dependentArray = new float[djacobianDtVel.Length];
+        for (int i = 0; i < dependentArray.Length; i++)
+        {
+            dependentArray[i] = -(
+                djacobianDtVel[i]
+                + jacobianInvMassesExplicit[i]
+                + constraintDampingRate * jacobianVel[i]
+                + constraintSpringRate * constraintsVec[i]
+            );
+        }
 
-    //     float[] dependentArray = new float[djacobianDtVel.Length];
-    //     for (int i = 0; i < dependentArray.Length; i++)
-    //     {
-    //         dependentArray[i] = -(
-    //             djacobianDtVel[i]
-    //             + jacobianInvMassesExplicit[i]
-    //             + constraintDampingRate * jacobianVel[i]
-    //             + constraintSpringRate * constraintsVec[i]
-    //         );
-    //     }
+        // Solve for lagrange_multipliers: front_matrix x = dependent_array
+        float[] lagrangeMultipliers = Utility.SolveLinearSystem(frontMatrix, dependentArray);
 
-    //     // Solve for lagrange_multipliers: front_matrix x = dependent_array
-    //     float[] lagrangeMultipliers = Utility.SolveLinearSystem(frontMatrix, dependentArray);
+        // reaction_forces = jacobian.T @ lagrange_multipliers
+        float[] reactionForcesFlat = Utility.MatrixMultiply(jacobianTranspose, lagrangeMultipliers);
+        // Convert flat array back to Vector3[]
+        Vector3[] reactionForces = Utility.UnflattenToVector3Array(reactionForcesFlat);
 
-    //     // reaction_forces = jacobian.T @ lagrange_multipliers
-    //     float[] reactionForcesFlat = Utility.MatrixMultiply(jacobianT, lagrangeMultipliers);
+        return Utility.MatrixMultiply<Vector3>(reactionForces, reactionForceScale);
+    }
 
-    //     // Convert flat array back to Vector3[]
-    //     Vector3[] reactionForces = Utility.UnflattenToVector3Array(reactionForcesFlat);
+    // Translated from Python `continuous_dynamics`
+    // Returns the state derivative as a flattened float array: [velocities_flat, accelerations_flat]
+    public override float[] ContinuousDynamics(float[] state, float[] control, float t)
+    {
+        var sw = Stopwatch.StartNew();
 
-    //     return reactionForces;
-    // }
+        // Policy and other callers may pass controls as float[]; convert to List<float>
+        Vector3[] actuationForces = CalcActuationForces(control);
+        //Utility.PrintVectors(actuationForces, "Actuation Forces");
+        sw.Restart();
+
+        Vector3[] explicitForces = CalcExplicitForces(actuationForces);
+        Utility.PrintArray(explicitForces, "Explicit Forces");
+        //Utility.PrintVectors(explicitForces, "Explicit Forces");
+        sw.Restart();
+
+        // Vector3[] explicitForces = explicitForcesList.ToArray();
+        // Vector3[] reactionForces = CalcReactionForces(state, explicitForces);
+        // UnityEngine.Debug.Log("Reaction forces " + sw.Elapsed.TotalSeconds);
+        // sw.Restart();
+
+        // TODO: later comment back in reaction forces
+        // Vector3[] forces = explicitForces + reactionForces;
+        // float[] forcesFlat = Utility.Flatten(forces);
+        float[] forcesFlat = Utility.Flatten(explicitForces);
+        float[] scaledForcesFlat = Utility.MatrixMultiply(invMasses, forcesFlat);
+        float[] velocitiesFlat = Utility.Flatten(ModelBuilder.Velocities);
+        //dstate
+        return  Utility.HorizontalStack(velocitiesFlat, scaledForcesFlat);
+    }
 
     // TODO replace with autograd calculation of constraints
     private (float[] constraints, float[,] jacobians, float[,] jacobianDerivatives) CalcConstraints()
@@ -164,7 +258,7 @@ public abstract class ConstrainedDynamic : Dynamic
         foreach (var constraint in this.constraints)
         {
             (float[] _constraints, float[,,] _jacobians, float[,,] _jacobianDerivatives) calculatedConstraints =
-                constraint.CalculateConstraints(modelBuilder);
+                constraint.CalculateConstraints();
             float[] constraintVector = calculatedConstraints._constraints;
             float[,,] jacobian = calculatedConstraints._jacobians;
             float[,,] jacobianDerivative = calculatedConstraints._jacobianDerivatives;
@@ -182,7 +276,7 @@ public abstract class ConstrainedDynamic : Dynamic
             // Handle error if reshaping failed
             if (jacobianReshaped == null || jacobianDerivativeReshaped == null)
             {
-                Debug.LogError("Reshaping failed for one of the constraints. Check dimension matching.");
+                UnityEngine.Debug.LogError("Reshaping failed for one of the constraints. Check dimension matching.");
                 continue;
             }
 
@@ -201,13 +295,13 @@ public abstract class ConstrainedDynamic : Dynamic
     }
 
     // TODO: need to change the function header depending on the state implementation
-    public abstract List<Vector3> CalcActuationForces(List<float> control);
+    public abstract Vector3[] CalcActuationForces(float[] control);
 
     // Calculate forces that are not caused by constraints or actuation.
-    public abstract List<Vector3> CalcPassiveForces();
+    public abstract Vector3[] CalcPassiveForces(Vector3[] pos, Vector3[] vel);
 
     // Factory abstract methods
-    public abstract void InitNumParticles();
-    public abstract void InitExternalForces();
-    public abstract void InitInvMasses();
+    protected abstract void InitNumParticles();
+    protected abstract void InitExternalForces();
+    protected abstract void InitInvMasses();
 }

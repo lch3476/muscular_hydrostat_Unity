@@ -19,21 +19,21 @@ public class Cell : MonoBehaviour
 
     // Spheres that work as vertices
     GameObject sphere1;
-    public GameObject Sphere1 { get { return sphere1; } }
+    public GameObject Sphere1 { get { return sphere1; } set { sphere1 = value; } }
     GameObject sphere2;
-    public GameObject Sphere2 { get { return sphere2; } }
+    public GameObject Sphere2 { get { return sphere2; } set { sphere2 = value; } }
     GameObject sphere3;
-    public GameObject Sphere3 { get { return sphere3; } }
+    public GameObject Sphere3 { get { return sphere3; } set { sphere3 = value; } }
     GameObject sphere4;
-    public GameObject Sphere4 { get { return sphere4; } }
+    public GameObject Sphere4 { get { return sphere4; } set { sphere4 = value; } }
     GameObject sphere5;
-    public GameObject Sphere5 { get { return sphere5; } }
+    public GameObject Sphere5 { get { return sphere5; } set { sphere5 = value; } }
     GameObject sphere6;
-    public GameObject Sphere6 { get { return sphere6; } }
+    public GameObject Sphere6 { get { return sphere6; } set { sphere6 = value; } }
     GameObject sphere7;
-    public GameObject Sphere7 { get { return sphere7; } }
+    public GameObject Sphere7 { get { return sphere7; } set { sphere7 = value; } }
     GameObject sphere8;
-    public GameObject Sphere8 { get { return sphere8; } }
+    public GameObject Sphere8 { get { return sphere8; } set { sphere8 = value; } }
     private List<LineRenderer> lines = new List<LineRenderer>();
 
     // Geometric properties
@@ -89,6 +89,15 @@ public class Cell : MonoBehaviour
     {
         GetSpheres();
         SetUpLineRenderers();
+    }
+
+    // Awake runs immediately when the object is instantiated (before Start).
+    // Ensure arrays that other classes may read immediately after Instantiate are initialized here.
+    void Awake()
+    {
+        // populate sphere references early so other builders can read them immediately after Instantiate
+        GetSpheres();
+
         Initialize();
     }
 
@@ -96,6 +105,32 @@ public class Cell : MonoBehaviour
     void Update()
     {
         DrawLineBetweenSpheres();
+    }
+
+    // Set the top vertices (Sphere1-4) to reference specific GameObjects
+    // Used to share vertices between adjacent cells
+    public void SetTopVertices(GameObject s1, GameObject s2, GameObject s3, GameObject s4)
+    {
+        sphere1 = s1;
+        sphere2 = s2;
+        sphere3 = s3;
+        sphere4 = s4;
+        
+        // Rebuild vertices, edges, and faces lists with new references
+        RebuildGeometry();
+    }
+
+    // Rebuild vertices, edges, and faces after vertex references change
+    private void RebuildGeometry()
+    {
+        vertices.Clear();
+        edges.Clear();
+        faces.Clear();
+        
+        InitVertices();
+        InitEdges();
+        InitFaces();
+        InitTriangulatedFaces();
     }
 
     void GetSpheres()
@@ -221,87 +256,183 @@ public class Cell : MonoBehaviour
 
     void DrawLineBetweenSpheres()
     {
+        // Check if spheres are active, but allow shared spheres from other cells
         if (sphere1 != null && sphere2 != null)
         {
             lines[0].SetPosition(0, sphere1.transform.position);
             lines[0].SetPosition(1, sphere2.transform.position);
+            lines[0].enabled = true;
+        }
+        else
+        {
+            lines[0].enabled = false;
+            if (sphere1 == null)
+            {
+                Debug.LogError($"{gameObject.name}: sphere1 is null");
+            }
+            else if (sphere2 == null)
+            {
+                Debug.LogError($"{gameObject.name}: sphere2 is null");
+            }
         }
 
-        if (sphere1 != null && sphere3 != null)
+        if (sphere1 != null && sphere4 != null)
         {
             lines[1].SetPosition(0, sphere1.transform.position);
             lines[1].SetPosition(1, sphere4.transform.position);
+            lines[1].enabled = true;
+        }
+        else
+        {
+            lines[1].enabled = false;
+            if (sphere1 == null)
+            {
+                Debug.LogError($"{gameObject.name}: sphere1 is null");
+            }
+            else if (sphere4 == null)
+            {
+                Debug.LogError($"{gameObject.name}: sphere4 is null");
+            }
         }
 
         if (sphere1 != null && sphere5 != null)
         {
             lines[2].SetPosition(0, sphere1.transform.position);
             lines[2].SetPosition(1, sphere5.transform.position);
+            lines[2].enabled = true;
+        }
+        else
+        {
+            lines[2].enabled = false;
+            if (sphere1 == null)
+            {
+                Debug.LogError($"{gameObject.name}: sphere1 is null");
+            }
+            else if (sphere5 == null)
+            {
+                Debug.LogError($"{gameObject.name}: sphere5 is null");
+            }
         }
 
-        if (sphere2 != null && sphere4 != null)
+        if (sphere2 != null && sphere3 != null)
         {
             lines[3].SetPosition(0, sphere2.transform.position);
             lines[3].SetPosition(1, sphere3.transform.position);
+            lines[3].enabled = true;
+        }
+        else
+        {
+            lines[3].enabled = false;
+            if (sphere2 == null)
+            {
+                Debug.LogError($"{gameObject.name}: sphere2 is null");
+            }
+            else if (sphere3 == null)
+            {
+                Debug.LogError($"{gameObject.name}: sphere3 is null");
+            }
         }
 
         if (sphere2 != null && sphere6 != null)
         {
             lines[4].SetPosition(0, sphere2.transform.position);
             lines[4].SetPosition(1, sphere6.transform.position);
+            lines[4].enabled = true;
+        }
+        else
+        {
+            lines[4].enabled = false;
+            if (sphere2 == null)
+            {
+                Debug.LogError($"{gameObject.name}: sphere2 is null");
+            }
+            else if (sphere6 == null)
+            {
+                Debug.LogError($"{gameObject.name}: sphere6 is null");
+            }
         }
 
         if (sphere3 != null && sphere4 != null)
         {
             lines[5].SetPosition(0, sphere3.transform.position);
             lines[5].SetPosition(1, sphere4.transform.position);
+            lines[5].enabled = true;
+        }
+        else
+        {
+            lines[5].enabled = false;
         }
 
         if (sphere3 != null && sphere7 != null)
         {
             lines[6].SetPosition(0, sphere3.transform.position);
             lines[6].SetPosition(1, sphere7.transform.position);
+            lines[6].enabled = true;
+        }
+        else
+        {
+            lines[6].enabled = false;
         }
 
         if (sphere4 != null && sphere8 != null)
         {
             lines[7].SetPosition(0, sphere4.transform.position);
             lines[7].SetPosition(1, sphere8.transform.position);
+            lines[7].enabled = true;
+        }
+        else
+        {
+            lines[7].enabled = false;
         }
 
         if (sphere5 != null && sphere6 != null)
         {
             lines[8].SetPosition(0, sphere5.transform.position);
             lines[8].SetPosition(1, sphere6.transform.position);
+            lines[8].enabled = true;
+        }
+        else
+        {
+            lines[8].enabled = false;
         }
 
-        if (sphere5 != null && sphere7 != null)
+        if (sphere5 != null && sphere8 != null)
         {
             lines[9].SetPosition(0, sphere5.transform.position);
             lines[9].SetPosition(1, sphere8.transform.position);
+            lines[9].enabled = true;
+        }
+        else
+        {
+            lines[9].enabled = false;
         }
 
-        if (sphere6 != null && sphere8 != null)
+        if (sphere6 != null && sphere7 != null)
         {
             lines[10].SetPosition(0, sphere6.transform.position);
             lines[10].SetPosition(1, sphere7.transform.position);
+            lines[10].enabled = true;
+        }
+        else
+        {
+            lines[10].enabled = false;
         }
 
         if (sphere7 != null && sphere8 != null)
         {
             lines[11].SetPosition(0, sphere7.transform.position);
             lines[11].SetPosition(1, sphere8.transform.position);
+            lines[11].enabled = true;
+        }
+        else
+        {
+            lines[11].enabled = false;
         }
     }
 
-    // Decompose each face into triangles for the purposes of volume calculation.
-    // Each face is assumed to be arranged counter clockwise from the outside.
-    //
-    // Returns:
-    //     a tx3 jnp.ndarray of vertex indices for all t triangles
-
     void Initialize()
     {
+
         InitVertices();
         InitEdges();
         if (masses == null)
@@ -362,16 +493,22 @@ public class Cell : MonoBehaviour
         faces.Add(Tuple.Create(Sphere5, Sphere6, Sphere7, Sphere8));
     }
     
+    // Decompose each face into triangles for the purposes of volume calculation.
+    // Each face is assumed to be arranged counter clockwise from the outside.
+    //
+    // Returns:
+    //     a tx3 jnp.ndarray of vertex indices for all t triangles
     void InitTriangulatedFaces()
     {
         if (faces != null)
         {
             foreach (var face in faces)
             {
-                if (face.Item1 == sphere1 ||
-                    face.Item2 == sphere1 ||
-                    face.Item3 == sphere1 ||
-                    face.Item4 == sphere1)
+                // Skip the top face by checking if the face contains any of the top vertices (sphere1-4)
+                if (face.Item1 == sphere1 || face.Item2 == sphere1 || face.Item3 == sphere1 || face.Item4 == sphere1 ||
+                    face.Item1 == sphere2 || face.Item2 == sphere2 || face.Item3 == sphere2 || face.Item4 == sphere2 ||
+                    face.Item1 == sphere3 || face.Item2 == sphere3 || face.Item3 == sphere3 || face.Item4 == sphere3 ||
+                    face.Item1 == sphere4 || face.Item2 == sphere4 || face.Item3 == sphere4 || face.Item4 == sphere4)
                 {
                     continue;
                 }
@@ -383,5 +520,56 @@ public class Cell : MonoBehaviour
         {
             Debug.LogError("Cell: faces is null");
         }
+    }
+
+    // Return the current world-space positions of each triangle's vertices as a jagged array.
+    // The returned array has shape [t][3] where t is number of triangles.
+    public Vector3[][] GetTrianglePositions()
+    {
+        if (triangles == null) return new Vector3[0][];
+        int count = triangles.Count;
+        Vector3[][] result = new Vector3[count][];
+        for (int i = 0; i < count; i++)
+        {
+            var triangle = triangles[i];
+            Vector3 p0 = triangle.Item1 != null ? triangle.Item1.transform.position : Vector3.zero;
+            Vector3 p1 = triangle.Item2 != null ? triangle.Item2.transform.position : Vector3.zero;
+            Vector3 p2 = triangle.Item3 != null ? triangle.Item3.transform.position : Vector3.zero;
+            result[i] = new Vector3[3] { p0, p1, p2 };
+        }
+        return result;
+    }
+
+    // Compute the cell volume by summing tetrahedron volumes formed by the apex (first vertex)
+    // and each triangulated face of the cell.
+    public float CalcVolume()
+    {
+        Vector3 apexPos = (Vertices != null && Vertices.Count > 0) ? Vertices[0].transform.position : Vector3.zero;
+        Vector3[][] trianglePositions = GetTrianglePositions();
+        float cellVolume = 0f;
+        if (trianglePositions != null)
+        {
+            foreach (Vector3[] triangle in trianglePositions)
+            {
+                if (triangle == null)
+                {
+                    Debug.LogError("ConstantVolume: triangle is null.");
+                    continue;
+                }
+
+                if (triangle.Length != 3)
+                {
+                    Debug.LogError("ConstantVolume: triangle does not have 3 vertices.");
+                    continue;
+                }
+                
+                Vector3 p0 = triangle[0] - apexPos;
+                Vector3 p1 = triangle[1] - apexPos;
+                Vector3 p2 = triangle[2] - apexPos;
+                float tetrahedronVolume = Utility.Determinant3x3(p0, p1, p2);
+                cellVolume += tetrahedronVolume;
+            }
+        }
+        return cellVolume;
     }
 }

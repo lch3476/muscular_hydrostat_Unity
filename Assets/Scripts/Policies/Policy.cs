@@ -20,7 +20,7 @@ public abstract class Policy : MonoBehaviour
     //     float t);
 
     // Should be replaced with the version with arm and observations arguments
-    public abstract List<float> TempCalculateControlInputs(
-        List<float> states,
+    public abstract float[] CalculateControlInputs(
+        float[] states,
         float t);
 }

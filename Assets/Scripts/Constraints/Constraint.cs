@@ -14,6 +14,19 @@ using System.Collections.Generic;
 // between the calculation of others.
 public abstract class Constraint : MonoBehaviour
 {
+    ModelBuilder modelBuilderObject;
+    public ModelBuilder ModelBuilderObject { get { return modelBuilderObject; } set { modelBuilderObject = value; } }
+
+    public void Initialize(ModelBuilder modelBuilder)
+    {
+        if (modelBuilder == null)
+        {
+            Debug.LogError("ModelBuilder is null when initializing constraint: " + this.GetType().Name);
+            return;
+        }
+        modelBuilderObject = modelBuilder;
+        InitializeConstraint();
+    }
     // Initialize the constraint by calculating whatever data is needed
 
     // Certain constraints, such as constant volume, require a calculation to be done
@@ -21,10 +34,7 @@ public abstract class Constraint : MonoBehaviour
 
     // Args:
     //     structure: A concrete instance of the structure interface.
-    public virtual void InitializeConstraint(ConstrainedDynamic model, List<float> initialState)
-    {
-        return;
-    }
+    public abstract void InitializeConstraint();
 
     // Returns the constraint vector, the Jacobian, and the time derivative of the
     // Jacobian.
@@ -45,5 +55,5 @@ public abstract class Constraint : MonoBehaviour
 
     //     The third is the time derivative of the Jacobian which is of the same shape
     //     as the Jacobian
-    public abstract (float[] constraints, float[,,] jacobians, float[,,] jacobianDerivative) CalculateConstraints(ModelBuilder modelBuilder);
+    public abstract (float[] constraints, float[,,] jacobians, float[,,] jacobianDerivative) CalculateConstraints();
 }

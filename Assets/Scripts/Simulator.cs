@@ -7,13 +7,13 @@ public class Simulator : MonoBehaviour
 {
 
     [SerializeField] Dynamic model;
-    [SerializeField] Policy policy;
+    // [SerializeField] Policy policy;
 
     // TODO: implement Environment
     // [SerializeField] List<Sensor> sensors;
     private List<float> initialState;
-    private List<float> state;
-    private List<float> control;
+    private float[] state;
+    private float[] control;
 
     // TODO: implement Environment
     // [SerializeField] List<Obstacle> obstacles;
@@ -25,13 +25,13 @@ public class Simulator : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-
+        InitState();
     }
 
     // Update is called once per frame
     void Update()
     {
-
+        Step(Time.time, Time.deltaTime);
     }
 
     // Perform a single step of the actor's operation. Update the state and control.
@@ -43,25 +43,28 @@ public class Simulator : MonoBehaviour
     //     The next state of the model after applying the control policy.
     void Step(float t, float dt)
     {
-
+        // Debug.Log("Simulation Step at time: " + t + " with dt: " + dt);
         float lastTime = Time.time;
         // Sense();
         // Debug.Log("Sensing: " + (Time.time - lastTime));
         // lastTime = Time.time;
 
         // temporary input to 
-        List<float> controlInputs = new List<float>(new float[model.NumControls]);
+        //float[] controlInputs = new float[model.NumControls];
+        Debug.Log("Model Num Controls: " + model.NumControls);
+        float[] controlInputs = Utility.CreateInitializedArray(model.NumControls, 5f);
         // TODO: implement environment and sensor
         // control = CalculateControl(t);
         // Debug.Log("Control: " + (Time.time - lastTime));
         // lastTime = Time.time;
 
         state = model.DiscreteDynamics(state, controlInputs, t, dt);
-        Debug.Log("Simulation: " + (Time.time - lastTime));
+        model.ModelBuilder.ParseState(state);
+        // Debug.Log("Simulation: " + (Time.time - lastTime));
     }
 
     // Estimate the current state of the model.
-    private List<float> EstimateState()
+    private float[] EstimateState()
     {
         // TODO: add estimation process.
         return state;
@@ -80,8 +83,27 @@ public class Simulator : MonoBehaviour
     //     t: The current time.
     // Returns:
     //     The control input as a jnp.ndarray.
-    List<float> CalculateControl(float t)
+    // float[] CalculateControl(float t)
+    // {
+    //     return policy.TempCalculateControlInputs(EstimateState(), t);
+    // }
+
+    private void InitState()
     {
-        return policy.TempCalculateControlInputs(EstimateState(), t);
+        if (model == null)
+        {
+            Debug.LogError("Simulator.InitState: model is null");
+            state = new float[0];
+            return;
+        }
+
+        if (model.ModelBuilder == null)
+        {
+            Debug.LogError("Simulator.InitState: model.ModelBuilder is null");
+            state = new float[0];
+            return;
+        }
+
+        state = model.ModelBuilder.GetState();
     }
 }

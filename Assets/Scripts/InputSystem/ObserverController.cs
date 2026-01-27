@@ -8,8 +8,7 @@ public class ObserverController : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created\
     Rigidbody rigidBody;
 
-    [SerializeField]
-    ObserverInputSystem observerControls;
+    [SerializeField] ObserverInputSystem observerControls;
     Vector2 moveDirection = Vector2.zero;
     Vector2 lookDirection = Vector2.zero;
     Vector2 HorizontalMoveDirection = Vector2.zero;
@@ -29,7 +28,9 @@ public class ObserverController : MonoBehaviour
     [SerializeField]
     Transform orientation;
 
-    Camera camera;
+    Camera observerCamera;
+
+    private bool isPaused = false;
 
     private void Awake()
     {
@@ -41,7 +42,7 @@ public class ObserverController : MonoBehaviour
         GameObject cameraHolder = GameObject.Find("CameraHolder");
         if (cameraHolder != null)
         {
-            camera = cameraHolder.GetComponentInChildren<Camera>();
+            observerCamera = cameraHolder.GetComponentInChildren<Camera>();
         }
 
         Cursor.visible = false;
@@ -51,15 +52,52 @@ public class ObserverController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        moveDirection = move.ReadValue<Vector2>();
-        lookDirection = look.ReadValue<Vector2>();
-        HorizontalMoveDirection = upDown.ReadValue<Vector2>();
+        // Check for ESC key to pause/unpause using new Input System
+        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+        {
+            TogglePause();
+        }
+
+        // Only read input if not paused
+        if (!isPaused)
+        {
+            moveDirection = move.ReadValue<Vector2>();
+            lookDirection = look.ReadValue<Vector2>();
+            HorizontalMoveDirection = upDown.ReadValue<Vector2>();
+        }
+        else
+        {
+            // Clear movement when paused
+            moveDirection = Vector2.zero;
+            lookDirection = Vector2.zero;
+            HorizontalMoveDirection = Vector2.zero;
+        }
+    }
+
+    private void TogglePause()
+    {
+        isPaused = !isPaused;
+
+        if (isPaused)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+        else
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
     }
 
     private void FixedUpdate()
     {
-        Turn();
-        Move();
+        // Only move and turn if not paused
+        if (!isPaused)
+        {
+            Turn();
+            Move();
+        }
     }
 
     void OnEnable()
@@ -100,7 +138,7 @@ public class ObserverController : MonoBehaviour
         xRotation -= mouseY;
         xRotation = Math.Clamp(xRotation, -90.0f, 90.0f);
 
-        camera.transform.rotation = Quaternion.Euler(xRotation, yRotation, 0.0f);
+        observerCamera.transform.rotation = Quaternion.Euler(xRotation, yRotation, 0.0f);
         orientation.rotation = Quaternion.Euler(0.0f, yRotation, 0.0f);
     }
 

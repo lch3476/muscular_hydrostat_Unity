@@ -6,21 +6,6 @@ using Unity.VisualScripting;
 
 public static class Utility
 {
-    public static Vector3 Sum(List<Vector3> matrice)
-    {
-        Vector3 result = Vector3.zero;
-        foreach (Vector3 v in matrice)
-        {
-            result += v;
-        }
-        return result;
-    }
-
-    public static Vector3 Mean(List<Vector3> matrice)
-    {
-        Vector3 result = Sum(matrice);
-        return result / (float)matrice.Count;
-    }
 
     public static (float[,], float[,]) StateToPosVel(float[] state)
     {
@@ -65,7 +50,6 @@ public static class Utility
         return array;
     }
 
-    // convert and return a multi-dimensional array into 1D structure
     public static float[] Flatten(Vector3[] vectors)
     {
         float[] flattened = new float[vectors.Length * 3];
@@ -79,33 +63,50 @@ public static class Utility
         return flattened;
     }
 
-    public static T[,] VerticalStack<T>(List<T[]> arrays)
+    // Flatten a 2D array into 1D
+    public static T[] Flatten<T>(T[,] array)
     {
-        if (arrays == null || arrays.Count == 0)
-        {
-            return new T[0, 0];
-        }
-
-        // all array must have the same length
-        int firstArrayLength = arrays[0].Length;
-        foreach (var arr in arrays)
-        {
-            if (arr.Length != firstArrayLength)
-            {
-                Debug.LogError("VerticalStack: All arrays must have the samelength along the second axis (number of columns).");
-                return new T[0, 0];
-            }
-        }
-
-        int totalRows = arrays.Count;
-        int cols = firstArrayLength;
-        T[,] result = new T[totalRows, cols];
-
-        for (int i = 0; i < totalRows; i++)
+        int rows = array.GetLength(0);
+        int cols = array.GetLength(1);
+        T[] flattened = new T[rows * cols];
+        
+        for (int i = 0; i < rows; i++)
         {
             for (int j = 0; j < cols; j++)
             {
-                result[i, j] = arrays[i][j];
+                flattened[i * cols + j] = array[i, j];
+            }
+        }
+        
+        return flattened;
+    }
+
+    public static T[] HorizontalStack<T>(params T[][] arrays)
+    {
+        if (arrays == null || arrays.Length == 0)
+        {
+            return new T[0];
+        }
+
+        // Calculate total length
+        int totalLength = 0;
+        foreach (var arr in arrays)
+        {
+            if (arr != null)
+            {
+                totalLength += arr.Length;
+            }
+        }
+
+        T[] result = new T[totalLength];
+        int currentIndex = 0;
+
+        foreach (var arr in arrays)
+        {
+            if (arr != null)
+            {
+                System.Array.Copy(arr, 0, result, currentIndex, arr.Length);
+                currentIndex += arr.Length;
             }
         }
 
@@ -200,7 +201,6 @@ public static class Utility
         return result;
     }
 
-    // Transpose a 2D array
     public static T[,] Transpose<T>(T[,] matrix)
     {
         if (matrix == null)
@@ -246,8 +246,6 @@ public static class Utility
         }
     }
 
-    // Matrix multiply for float matrices: result = lhs * rhs
-    // Optimized version: transpose rhs for contiguous access and parallelize over rows of lhs.
     public static float[,] MatrixMultiply(float[,] lhs, float[,] rhs)
     {
         if (lhs == null || rhs == null) return null;
@@ -293,17 +291,15 @@ public static class Utility
         return result;
     }
 
-    // Matrix-vector multiply for floats: out = lhs * vec (returns vector of length rows)
-    // This performs the standard matrix x vector product: out[i] = sum_j lhs[i,j] * rhs[j]
-    public static float[] MatrixMultiply(float[,] lhs, float[] rhs)
+    public static float[] MatrixMultiply(float[,] mat, float[] vec)
     {
-        if (lhs == null || rhs == null) return null;
+        if (mat == null || vec == null) return null;
 
-        int rows = lhs.GetLength(0);
-        int cols = lhs.GetLength(1);
-        if (rhs.Length != cols)
+        int rows = mat.GetLength(0);
+        int cols = mat.GetLength(1);
+        if (vec.Length != cols)
         {
-            Debug.LogError($"MatrixMultiply (mat-vec): vector length {rhs.Length} does not match matrix cols {cols}.");
+            Debug.LogError($"MatrixMultiply (mat-vec): vector length {vec.Length} does not match matrix cols {cols}.");
             return null;
         }
 
@@ -311,65 +307,120 @@ public static class Utility
         for (int i = 0; i < rows; i++)
         {
             float s = 0f;
-            for (int j = 0; j < cols; j++) s += lhs[i, j] * rhs[j];
+            for (int j = 0; j < cols; j++) s += mat[i, j] * vec[j];
             result[i] = s;
         }
 
         return result;
     }
 
-    // Left-multiply a matrix by a diagonal matrix represented by `diag`.
-    // Returns diag_matrix * mat where diag has length equal to mat rows.
-    public static float[,] MatrixMultiply(float[] diag, float[,] mat)
+    public static float[] MatrixMultiply(float[] vec, float[,] mat)
     {
-        if (diag == null || mat == null) return null;
+        if (vec == null || mat == null) return null;
+        
         int rows = mat.GetLength(0);
         int cols = mat.GetLength(1);
-        if (diag.Length != rows)
+
+        if (vec.Length != rows)
         {
-            Debug.LogError($"LeftDiagonalMultiply: diag length {diag.Length} does not match mat rows {rows}.");
+            Debug.LogError($"MatrixMultiply (vec-mat): length {vec.Length} does not match mat rows {rows}.");
             return null;
         }
-        float[,] result = new float[rows, cols];
-        for (int i = 0; i < rows; i++)
+
+        float[] result = new float[cols];
+        for (int j = 0; j < cols; j++)
         {
-            float d = diag[i];
-            for (int j = 0; j < cols; j++) result[i, j] = d * mat[i, j];
+            float s = 0f;
+            for (int i = 0; i < rows; i++) s += vec[i] * mat[i, j];
+            result[j] = s;
+        }
+
+        return result;
+    }
+
+    // Element-wise multiplication of two 1D arrays: result[i] = lhs[i] * rhs[i]
+    public static T[] MatrixMultiply<T>(T[] lhs, T[] rhs)
+    {
+        if (lhs == null || rhs == null)
+        {
+            Debug.LogError("MatrixMultiply (element-wise): one or both arrays are null.");
+            return null;
+        }
+
+        if (lhs.Length != rhs.Length)
+        {
+            Debug.LogError($"MatrixMultiply (element-wise): array lengths must match (lhs={lhs.Length}, rhs={rhs.Length}).");
+            return null;
+        }
+
+        T[] result = new T[lhs.Length];
+        for (int i = 0; i < lhs.Length; i++)
+        {
+            result[i] = (dynamic)lhs[i] * (dynamic)rhs[i];
+        }
+
+        return result;
+    }
+
+        // Multiply each Vector3 in the array by a scalar value
+    public static T[] MatrixMultiply<T>(T[] mat, float scalar)
+    {
+        if (mat == null)
+        {
+            Debug.LogError("ScalarMultiply: input vectors array is null.");
+            return null;
+        }
+
+        T[] result = new T[mat.Length];
+        for (int i = 0; i < mat.Length; i++)
+        {
+            result[i] = (dynamic)mat[i] * scalar;
         }
         return result;
     }
 
-    // Elementwise multiply with broadcasting for per-vertex scalars.
-    // If vec.Length == scalars.Length * 3, each scalar is applied to three consecutive elements.
-    // Otherwise, if lengths equal, do elementwise multiplication.
-    public static float[] ElementwiseMultiply(float[] scalars, float[] vec)
+    public static T[] MatrixMultiply<T>(float scalar, T[] mat)
     {
-        if (scalars == null || vec == null) return null;
-        if (vec.Length == scalars.Length * 3)
+        if (mat == null)
         {
-            float[] outVec = new float[vec.Length];
-            for (int i = 0; i < scalars.Length; i++)
-            {
-                float s = scalars[i];
-                int baseIdx = 3 * i;
-                outVec[baseIdx] = s * vec[baseIdx];
-                outVec[baseIdx + 1] = s * vec[baseIdx + 1];
-                outVec[baseIdx + 2] = s * vec[baseIdx + 2];
-            }
-            return outVec;
-        }
-        else if (vec.Length == scalars.Length)
-        {
-            float[] outVec = new float[vec.Length];
-            for (int i = 0; i < vec.Length; i++) outVec[i] = scalars[i] * vec[i];
-            return outVec;
-        }
-        else
-        {
-            Debug.LogError($"ElementwiseMultiply: incompatible lengths ({scalars.Length}, {vec.Length}).");
+            Debug.LogError("ScalarMultiply: input vectors array is null.");
             return null;
         }
+
+        return MatrixMultiply(mat, scalar);
     }
+
+    public static T[,] MatrixAdd<T>(T[,] lhs, T[,] rhs)
+    {
+        if (lhs == null || rhs == null)
+        {
+            Debug.LogError("MatrixAdd: one or both matrices are null.");
+            return null;
+        }
+
+        int lhsRows = lhs.GetLength(0);
+        int lhsCols = lhs.GetLength(1);
+        int rhsRows = rhs.GetLength(0);
+        int rhsCols = rhs.GetLength(1);
+
+        if (lhsRows != rhsRows || lhsCols != rhsCols)
+        {
+            Debug.LogError($"MatrixAdd: matrix dimensions must match (lhs={lhsRows}x{lhsCols}, rhs={rhsRows}x{rhsCols}).");
+            return null;
+        }
+
+        T[,] result = new T[lhsRows, lhsCols];
+        for (int i = 0; i < lhsRows; i++)
+        {
+            for (int j = 0; j < lhsCols; j++)
+            {
+                result[i, j] = (dynamic)lhs[i, j] + (dynamic)rhs[i, j];
+            }
+        }
+
+        return result;
+    }
+
 
     // Convert flat float array (n*3) to Vector3[]
     public static Vector3[] UnflattenToVector3Array(float[] flat)
@@ -460,61 +511,6 @@ public static class Utility
         return x;
     }
 
-    public static T[,] Reshape<T>(T[] flatArray, int newRows, int newCols)
-    {
-        if (flatArray == null)
-        {
-            return null;
-        }
-
-        int totalElements = flatArray.Length;
-        int rows = newRows;
-        int cols = newCols;
-
-        if (rows == -1 && cols == -1)
-        {
-            Debug.LogError("Cannot infer both rows and columns. One must be specified.");
-            return null;
-        }
-        if (rows == -1)
-        {
-            if (cols <= 0 || totalElements % cols != 0)
-            {
-                Debug.LogError($"Cannot infer rows: array size {totalElements} is not divisible by cols {cols}.");
-                return null;
-            }
-            rows = totalElements / cols;
-        }
-        if (cols == -1)
-        {
-            if (rows <= 0 || totalElements % rows != 0)
-            {
-                Debug.LogError($"Cannot infer cols: array size {totalElements} is not divisible by rows {rows}.");
-                return null;
-            }
-            cols = totalElements / rows;
-        }
-        if (rows * cols != totalElements)
-        {
-            Debug.LogError($"Cannot reshape array of size {totalElements} into shape ({rows}, {cols}).");
-            return null;
-        }
-
-        T[,] reshapedArray = new T[rows, cols];
-        int index = 0;
-
-        for (int i = 0; i < rows; i++)
-        {
-            for (int j = 0; j < cols; j++)
-            {
-                reshapedArray[i, j] = flatArray[index];
-                index++;
-            }
-        }
-
-        return reshapedArray;
-    }
-
     // Overloaded Reshape for 3D array input
     public static T[,] Reshape<T>(T[,,] flatArray, int newRows, int newCols)
     {
@@ -577,4 +573,100 @@ public static class Utility
 
         return reshapedArray;
     }
+
+    public static float Determinant3x3(Vector3 v1, Vector3 v2, Vector3 v3)
+    {
+        return Vector3.Dot(v1, Vector3.Cross(v2, v3));
+    }
+
+    // Extract a column from a 2D array (equivalent to arr[:, colIndex] in NumPy)
+    public static T[] GetColumn<T>(T[,] array, int columnIndex)
+    {
+        if (array == null)
+        {
+            Debug.LogError("GetColumn: array is null.");
+            return null;
+        }
+
+        int rows = array.GetLength(0);
+        int cols = array.GetLength(1);
+
+        if (columnIndex < 0 || columnIndex >= cols)
+        {
+            Debug.LogError($"GetColumn: columnIndex {columnIndex} out of range [0, {cols}).");
+            return null;
+        }
+
+        T[] result = new T[rows];
+        for (int i = 0; i < rows; i++)
+        {
+            result[i] = array[i, columnIndex];
+        }
+        return result;
+    }
+
+    public static void PrintVectors(List<Vector3> vectors, string label = "Vectors")
+    {
+        if (vectors == null)
+        {
+            Debug.Log($"{label}: null");
+            return;
+        }
+        PrintVectors(vectors.ToArray(), label);
+    }
+
+    public static void PrintVectors(Vector3[] vectors, string label = "Vectors")
+    {
+        if (vectors == null)
+        {
+            Debug.Log($"{label}: null");
+            return;
+        }
+
+        Debug.Log($"{label} (Length: {vectors.Length}):");
+        for (int i = 0; i < vectors.Length; i++)
+        {
+            Debug.Log($"  [{i}]: ({vectors[i].x:F3}, {vectors[i].y:F3}, {vectors[i].z:F3})");
+        }
+    }
+
+    public static void PrintArray<T>(T[] array, string label = "Array")
+    {
+        if (array == null)
+        {
+            Debug.Log($"{label}: null");
+            return;
+        }
+
+        Debug.Log($"{label} (Length: {array.Length}):");
+        for (int i = 0; i < array.Length; i++)
+        {
+            Debug.Log($"  [{i}]: {array[i]}");
+        }
+    }
+
+    public static void PrintArray<T>(T[,] array, string label = "Array")
+    {
+        if (array == null)
+        {
+            Debug.Log($"{label}: null");
+            return;
+        }
+
+        int rows = array.GetLength(0);
+        int cols = array.GetLength(1);
+        
+        Debug.Log($"{label} (Shape: {rows}x{cols}):");
+        for (int i = 0; i < rows; i++)
+        {
+            string rowStr = $"  [{i}]: ";
+            for (int j = 0; j < cols; j++)
+            {
+                rowStr += $"{array[i, j],8} ";
+            }
+            Debug.Log(rowStr);
+        }
+    }
+
 }
+
