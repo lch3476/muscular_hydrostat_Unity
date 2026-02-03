@@ -89,7 +89,6 @@ public abstract class ConstrainedDynamic : Dynamic
         }
     }
 
-
     // Calculate and sum all forces that are not calculated via constrained
     //     dynamics.
 
@@ -134,23 +133,14 @@ public abstract class ConstrainedDynamic : Dynamic
             UnityEngine.Debug.LogError("ModelBuilder is null in CalcExplicitForces; skipping passive forces calculation.");
             return null;
         }
-        
 
-        // If CalcPassiveForces returned per-vertex forces (length == count), subtract per-vertex.
-        if (passiveForces != null && passiveForces.Length == count)
+        for (int i = 0; i < count; i++)
         {
-            for (int i = 0; i < count; i++)
-            {
-                Vector3 externalForce = (externalForces != null && i < externalForces.Length) ? externalForces[i] : Vector3.zero;
-                Vector3 actuationForce = (i < actuationForces.Length) ? actuationForces[i] : Vector3.zero;
-                Vector3 passiveForce = passiveForces[i];
-                explicitForces[i] = externalForce + actuationForce - passiveForce;
-            }
-        }
-        else
-        {
-            UnityEngine.Debug.LogError("CalcExplicitForces: passiveForces length mismatch; returning null.");
-            return null;
+            Vector3 externalForce = (externalForces != null && i < externalForces.Length) ? externalForces[i] : Vector3.zero;
+            Vector3 actuationForce = (i < actuationForces.Length) ? actuationForces[i] : Vector3.zero;
+            Vector3 passiveForce = (passiveForces != null && i < passiveForces.Length) ? passiveForces[i] : Vector3.zero;
+    
+            explicitForces[i] = externalForce + actuationForce - passiveForce * PassiveForceScale;
         }
 
         return Utility.MatrixMultiply<Vector3>(explicitForces, explicitForceScale);

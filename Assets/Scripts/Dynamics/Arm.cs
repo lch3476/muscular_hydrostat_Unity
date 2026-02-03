@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.UIElements;
+using System.Linq;
 
 public class Arm : ConstrainedDynamic
 {
@@ -42,6 +43,8 @@ public class Arm : ConstrainedDynamic
     protected override void InitExternalForces()
     {
         ExternalForces = new Vector3[ModelBuilder.Vertices.Count];
+        ExternalForces[0] = new Vector3(1f, 0f, 0f); // gravity
+        ExternalForces = Utility.MatrixMultiply<Vector3>(ExternalForces, ExternalForceScale);
     }
 
     protected override void InitInvMasses()
@@ -65,31 +68,29 @@ public class Arm : ConstrainedDynamic
 
     public override Vector3[] CalcPassiveForces(Vector3[] pos, Vector3[] vel)
     {
-        int n = pos.Length;
-        // passive edge forces per vertex
+        int n = vel.Length;
+        List<Vector3> passiveForces = new List<Vector3>();
+
         Vector3[] passiveEdgeForces = CalcPassiveEdgeForces(pos, vel);
-        // vertex damping: per-vertex scalar * vel
-        List<float> dampingList = ModelBuilder.VertexDamping;
-        Vector3[] vertexDampingForces = new Vector3[n];
-        for (int i = 0; i < n; i++)
+        passiveForces.AddRange(passiveEdgeForces);
+
+        List<float> vertexDamping = ModelBuilder.VertexDamping;
+        if (vertexDamping.Count != n)
         {
-            float d = (dampingList != null && i < dampingList.Count) ? dampingList[i] : 0f;
-            Vector3 df = d * vel[i];
-            vertexDampingForces[i] = df;
+            Debug.LogWarning($"CalcPassiveForces: Vertex damping count {vertexDamping.Count} does not match number of vertices {n}.");
         }
 
-        // Sum contributions per vertex and return list of per-vertex passive forces
-        Vector3[] totalPassive = new Vector3[n];
+        Vector3 dampedVelocity;
         for (int i = 0; i < n; i++)
         {
-            Vector3 edgeF = (i < passiveEdgeForces.Length) ? passiveEdgeForces[i] : Vector3.zero;
-            Vector3 dampF = (i < vertexDampingForces.Length) ? vertexDampingForces[i] : Vector3.zero;
-            totalPassive[i] = edgeF + dampF;
+            float damping = (vertexDamping != null && i < vertexDamping.Count) ? vertexDamping[i] : 0f;
+            dampedVelocity = damping * vel[i];
+            passiveForces.Add(dampedVelocity);
         }
 
-        return Utility.MatrixMultiply<Vector3>(totalPassive, PassiveForceScale);
+        return passiveForces.ToArray();
     }
-
+    
     private Vector3[] CalcPassiveEdgeForces(Vector3[] pos, Vector3[] vel)
     {
         int n = pos.Length;
@@ -102,17 +103,23 @@ public class Arm : ConstrainedDynamic
         for (int e = 0; e < m; e++)
         {
             var edge = edges[e];
-            // edge is Tuple<GameObject, GameObject>
-            GameObject ga = edge.Item1;
-            GameObject gb = edge.Item2;
-            int i = ModelBuilder.Vertices.IndexOf(ga);
-            int j = ModelBuilder.Vertices.IndexOf(gb);
-            if (i < 0 || j < 0) continue;
+            GameObject p1 = edge.Item1;
+            GameObject p2 = edge.Item2;
 
+            int i = ModelBuilder.Vertices.IndexOf(p1);
+            int j = ModelBuilder.Vertices.IndexOf(p2);
+            if (i < 0 || j < 0)
+            {
+                Debug.Log("Failed to find vertex index for edge " + e);
+                continue;
+            }
+            
+            // Use input positions, not live transform positions
             Vector3 edgeVector = pos[j] - pos[i];
-            float len = edgeVector.magnitude;
-            if (len <= Mathf.Epsilon) continue;
-            Vector3 edgeUnit = edgeVector / len;
+
+            float vectorLength = edgeVector.magnitude;
+            if (vectorLength <= Mathf.Epsilon) continue;
+            Vector3 edgeUnit = edgeVector / vectorLength;
 
             Vector3 relativeVelocity = vel[j] - vel[i];
             Vector3 edgeVelocity = Vector3.Dot(edgeUnit, relativeVelocity) * edgeUnit;
@@ -125,9 +132,9 @@ public class Arm : ConstrainedDynamic
         }
 
         Vector3[] result = new Vector3[n];
-        for (int ii = 0; ii < n; ii++) result[ii] = edgeForces[ii];
+        for (int i = 0; i < n; i++) result[i] = edgeForces[i];
 
-        return Utility.MatrixMultiply<Vector3>(result, PassiveEdgeForceScale);
+        return result;
     }
 
     // Converted from Python `_calc_actuation_forces`.

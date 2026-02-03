@@ -25,11 +25,11 @@ public abstract class Dynamic : MonoBehaviour
     // Integrate the continuous dynamics using Euler's method.
     public virtual float[] IntegratorEuler(float[] state, float[] control, float t, float dt)
     {
-        float[] derivative = ContinuousDynamics(state, control, t);
+        float[] dynamicsResult = ContinuousDynamics(state, control, t);
         float[] nextState = new float[state.Length];
         for (int i = 0; i < state.Length; i++)
         {
-            nextState[i] = state[i] + dt * derivative[i];
+            nextState[i] = state[i] + dt * dynamicsResult[i];
         }
         return nextState;
     }

@@ -6,6 +6,21 @@ using Unity.VisualScripting;
 
 public static class Utility
 {
+    public static T Sum<T>(T[] array)
+    {
+        if (array == null || array.Length == 0)
+        {
+            Debug.LogWarning("Sum: array is null or empty, returning default value.");
+            return default(T);
+        }
+
+        dynamic sum = array[0];
+        for (int i = 1; i < array.Length; i++)
+        {
+            sum += (dynamic)array[i];
+        }
+        return sum;
+    }
 
     public static (float[,], float[,]) StateToPosVel(float[] state)
     {
