@@ -21,6 +21,16 @@ public static class Utility
         }
         return sum;
     }
+    
+    public static Vector3 VectorDivision(Vector3 numerator, float denominator)
+    {
+        if (denominator == 0)
+        {
+            Debug.LogWarning("VectorDivision: denominator is zero, returning zero vector.");
+            return Vector3.zero;
+        }
+        return numerator / denominator;
+    }
 
     public static (float[,], float[,]) StateToPosVel(float[] state)
     {
@@ -436,6 +446,29 @@ public static class Utility
         return result;
     }
 
+    public static Vector3[] VectorAdd(Vector3[] lhs, Vector3[] rhs)
+    {
+        if (lhs == null || rhs == null)
+        {
+            Debug.LogError("VectorAdd: one or both arrays are null.");
+            return null;
+        }
+
+        if (lhs.Length != rhs.Length)
+        {
+            Debug.LogError($"VectorAdd: array lengths must match (lhs={lhs.Length}, rhs={rhs.Length}).");
+            return null;
+        }
+
+        Vector3[] result = new Vector3[lhs.Length];
+        for (int i = 0; i < lhs.Length; i++)
+        {
+            result[i] = lhs[i] + rhs[i];
+        }
+
+        return result;
+    }
+
 
     // Convert flat float array (n*3) to Vector3[]
     public static Vector3[] UnflattenToVector3Array(float[] flat)
@@ -594,6 +627,57 @@ public static class Utility
         return Vector3.Dot(v1, Vector3.Cross(v2, v3));
     }
 
+    /// Creates an array of sequential integers from 0 to count-1.
+    public static int[] Arange(int count)
+    {
+        if (count < 0)
+        {
+            Debug.LogError($"Arange: count must be non-negative, got {count}.");
+            return new int[0];
+        }
+
+        int[] result = new int[count];
+        for (int i = 0; i < count; i++)
+        {
+            result[i] = i;
+        }
+        return result;
+    }
+
+    /// Creates two 2D coordinate grids from two 1D arrays (equivalent to np.meshgrid).
+    /// For example, if array1 = [0, 1, 2] and array2 = [10, 20]:
+    /// Returns (
+    ///   [[0, 1, 2],    // array1 repeated for each element of array2
+    ///    [0, 1, 2]],
+    ///   [[10, 10, 10], // each element of array2 repeated for each element of array1
+    ///    [20, 20, 20]]
+    /// )
+    public static (T[,], T[,]) Meshgrid<T>(T[] array1, T[] array2)
+    {
+        if (array1 == null || array2 == null)
+        {
+            Debug.LogError("Meshgrid: one or both arrays are null.");
+            return (null, null);
+        }
+
+        int len1 = array1.Length;
+        int len2 = array2.Length;
+
+        T[,] grid1 = new T[len2, len1];
+        T[,] grid2 = new T[len2, len1];
+
+        for (int i = 0; i < len2; i++)
+        {
+            for (int j = 0; j < len1; j++)
+            {
+                grid1[i, j] = array1[j];
+                grid2[i, j] = array2[i];
+            }
+        }
+
+        return (grid1, grid2);
+    }
+
     // Extract a column from a 2D array (equivalent to arr[:, colIndex] in NumPy)
     public static T[] GetColumn<T>(T[,] array, int columnIndex)
     {
@@ -684,4 +768,3 @@ public static class Utility
     }
 
 }
-

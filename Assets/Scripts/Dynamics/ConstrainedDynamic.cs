@@ -156,7 +156,11 @@ public abstract class ConstrainedDynamic : Dynamic
 
         // Calculate constraints, jacobian, and jacobian derivative
         (float[] constraintsVec, float[,] jacobian, float[,] jacobianDerivative) = CalcConstraints();
-
+        if (constraintsVec == null || constraintsVec.Length == 0 || jacobian == null || jacobianDerivative == null)
+        {
+            Vector3[] zeros = Utility.CreateInitializedArray<Vector3>(externalForces.Length, Vector3.zero);
+            return zeros;
+        }
         // invMasses: float[] of length n
         // jacobian: (m, n*3)
         // jacobian.T: (n*3, m)
@@ -165,7 +169,7 @@ public abstract class ConstrainedDynamic : Dynamic
         // Compute front_matrix = jacobian @ (inv_masses[:, None] * jacobian.T)
         float[,] invMassesMatrix = Utility.Diagonalize(invMasses);
         float[,] jacobianTranspose = Utility.Transpose(jacobian);   // (n*3, m)
-        float[,] invMassesJacobianTranspose = Utility.MatrixMultiply(jacobianTranspose, invMassesMatrix); // (n*3, m)
+        float[,] invMassesJacobianTranspose = Utility.MatrixMultiply(invMassesMatrix, jacobianTranspose); // (n*3, m)
         float[,] frontMatrix = Utility.MatrixMultiply(jacobian, invMassesJacobianTranspose); // (m, m)
         // Regularization: front_matrix + eye * 1e-6
         Utility.AddIdentityInPlace(frontMatrix, 1e-6f);
@@ -216,22 +220,21 @@ public abstract class ConstrainedDynamic : Dynamic
         // Policy and other callers may pass controls as float[]; convert to List<float>
         Vector3[] actuationForces = CalcActuationForces(control);
         //Utility.PrintVectors(actuationForces, "Actuation Forces");
-        sw.Restart();
+        // sw.Restart();
 
         Vector3[] explicitForces = CalcExplicitForces(actuationForces);
         Utility.PrintArray(explicitForces, "Explicit Forces");
         //Utility.PrintVectors(explicitForces, "Explicit Forces");
-        sw.Restart();
+        // sw.Restart();
 
-        // Vector3[] explicitForces = explicitForcesList.ToArray();
-        // Vector3[] reactionForces = CalcReactionForces(state, explicitForces);
+        Vector3[] reactionForces = CalcReactionForces(state, explicitForces);
         // UnityEngine.Debug.Log("Reaction forces " + sw.Elapsed.TotalSeconds);
         // sw.Restart();
 
         // TODO: later comment back in reaction forces
-        // Vector3[] forces = explicitForces + reactionForces;
-        // float[] forcesFlat = Utility.Flatten(forces);
-        float[] forcesFlat = Utility.Flatten(explicitForces);
+        Vector3[] forces = Utility.VectorAdd(explicitForces, reactionForces);
+        float[] forcesFlat = Utility.Flatten(forces);
+        // float[] forcesFlat = Utility.Flatten(explicitForces);
         float[] scaledForcesFlat = Utility.MatrixMultiply(invMasses, forcesFlat);
         float[] velocitiesFlat = Utility.Flatten(ModelBuilder.Velocities);
         //dstate
@@ -247,6 +250,11 @@ public abstract class ConstrainedDynamic : Dynamic
 
         foreach (var constraint in this.constraints)
         {
+            if (constraint == null)
+            {
+                UnityEngine.Debug.LogWarning("CalcConstraints: encountered a null constraint; skipping.");
+                continue;
+            }
             (float[] _constraints, float[,,] _jacobians, float[,,] _jacobianDerivatives) calculatedConstraints =
                 constraint.CalculateConstraints();
             float[] constraintVector = calculatedConstraints._constraints;

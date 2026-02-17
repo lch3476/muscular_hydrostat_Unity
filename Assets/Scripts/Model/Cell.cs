@@ -11,6 +11,7 @@ using System;
 
 public class Cell : MonoBehaviour
 {
+    public static readonly int NUM_PLANE_VERTICES = 4;
     // Class variables
     // [SerializeField] float width = 0.5f;
     // [SerializeField] float length = 0.5f;
