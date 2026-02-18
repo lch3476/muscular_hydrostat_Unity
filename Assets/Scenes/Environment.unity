@@ -213,15 +213,14 @@ MonoBehaviour:
   modelBuilder: {fileID: 1831939720}
   constraintDampingRate: 25
   constraintSpringRate: 25
-  actuationForceScale: 0.01
+  actuationForceScale: 0
   explicitForceScale: 0.1
-  reactionForceScale: 0.01
-  passiveForceScale: 0.001
+  reactionForceScale: 0
+  passiveForceScale: 0
   passiveEdgeForceScale: 1
-  externalForceScale: 0
+  externalForceScale: -0.1
   constraints:
   - {fileID: 703351243}
-  - {fileID: 26547048}
 --- !u!1 &545238694
 GameObject:
   m_ObjectHideFlags: 0
@@ -801,9 +800,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca71cdc044eff8f40803eb147f4b5669, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  modelBuilderObject: {fileID: 0}
-  F: 0
-  V: 0
 --- !u!4 &1358163026
 Transform:
   m_ObjectHideFlags: 0

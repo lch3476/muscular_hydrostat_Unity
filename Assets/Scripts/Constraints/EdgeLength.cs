@@ -33,7 +33,7 @@ public class EdgeLength : Constraint
             velocities = new Vector3[positions.Length];
         }
 
-        float[] edgeLengths = CalcEdgeLengths(positions);
+        float[] edgeLengths = CalcEdgeLengths();
         List<int> constrainedEdgeIndices = GetConstrainedEdgedIndices(edgeLengths);
         int numConstrained = constrainedEdgeIndices.Count;
 
@@ -43,17 +43,37 @@ public class EdgeLength : Constraint
         }
 
         float[] constraints = new float[numConstrained];
+
+        // Calculate length differences from limits
+        float[,] lengthDiffs = new float[numConstrained, 2];
+        for (int i = 0; i < numConstrained; i++)
+        {
+            int edgeIdx = constrainedEdgeIndices[i];
+            lengthDiffs[i, 0] = edgeLengths[edgeIdx] - limits[0];
+            lengthDiffs[i, 1] = edgeLengths[edgeIdx] - limits[1];
+        }
+
+        // Find which limit each edge is closest to
+        int[] minOrMax = new int[numConstrained];
+        for (int i = 0; i < numConstrained; i++)
+        {
+            float absDiffMin = Mathf.Abs(lengthDiffs[i, 0]);
+            float absDiffMax = Mathf.Abs(lengthDiffs[i, 1]);
+            minOrMax[i] = (absDiffMin < absDiffMax) ? 0 : 1;
+        }
+
+        // Select constraint values: constraints = length_diffs[np.arange(num_constrained), min_or_max]
+        for (int i = 0; i < numConstrained; i++)
+        {
+            constraints[i] = lengthDiffs[i, minOrMax[i]];
+        }
+
         float[,,] jacobians = new float[numConstrained, positions.Length, 3];
         float[,,] jacobiansDerivative = new float[numConstrained, positions.Length, 3];
 
         for (int constrainedIdx = 0; constrainedIdx < constrainedEdgeIndices.Count; constrainedIdx++)
         {
             int edgeIdx = constrainedEdgeIndices[constrainedIdx];
-            float edgeLength = edgeLengths[edgeIdx];
-            bool isBelowMin = edgeLength < minLength;
-
-            // Use length - bound so the constraint is negative below min, positive above max.
-            constraints[constrainedIdx] = isBelowMin ? (edgeLength - minLength) : (edgeLength - maxLength);
 
             // Jacobain calculation for edge length constraint
             GameObject edgePoint1 = ModelBuilderObject.Edges[edgeIdx].Item1;
@@ -76,9 +96,9 @@ public class EdgeLength : Constraint
             Vector3 edgePoint2Vel = velocities[edgePoint2Index];
             Vector3 edgeVelocityDiff = edgePoint1Vel - edgePoint2Vel;
 
-            var unitRelativeEdgeDerivative =
-                Utility.VectorDivision((edgeVelocityDiff * edgeLengths[edgeIdx]) - (edgeReletiveVector * Vector3.Dot(edgeReletiveVector, edgeVelocityDiff)),
-                    (float)Math.Pow(edgeLengths[edgeIdx], 2));
+            var unitRelativeEdgeDerivative = 
+                ((edgeVelocityDiff * edgeLengths[edgeIdx]) - (edgeReletiveVector * Vector3.Dot(edgeReletiveVector, edgeVelocityDiff))) /
+                (float)Math.Pow(edgeLengths[edgeIdx], 2);
 
             jacobiansDerivative[constrainedIdx, edgePoint1Index, 0] = unitRelativeEdgeDerivative.x;
             jacobiansDerivative[constrainedIdx, edgePoint1Index, 1] = unitRelativeEdgeDerivative.y;
@@ -92,18 +112,16 @@ public class EdgeLength : Constraint
         return (constraints, jacobians, jacobiansDerivative);
     }
 
-    float[] CalcEdgeLengths(Vector3[] positions)
+    float[] CalcEdgeLengths()
     {
-        List<Tuple<GameObject, GameObject>> edges = ModelBuilderObject.Edges;
-        float[] edgeLengths = new float[edges.Count];
-        for (int i = 0; i < edges.Count; i++)
+        List<float> edgeLengths = new List<float>(ModelBuilderObject.Edges.Count);
+        foreach (var edge in ModelBuilderObject.Edges)
         {
-            int idx0 = ModelBuilderObject.Vertices.IndexOf(edges[i].Item1);
-            int idx1 = ModelBuilderObject.Vertices.IndexOf(edges[i].Item2);
-            Vector3 edgeVec = positions[idx0] - positions[idx1];
-            edgeLengths[i] = edgeVec.magnitude;
+
+            Vector3 edgeVec = edge.Item1.transform.position - edge.Item2.transform.position;
+            edgeLengths.Add(edgeVec.magnitude);
         }
-        return edgeLengths;
+        return edgeLengths.ToArray();
     }
 
     List<int> GetConstrainedEdgedIndices(float[] edgeLengths)
