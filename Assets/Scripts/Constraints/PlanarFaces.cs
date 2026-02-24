@@ -35,6 +35,27 @@ public class PlanarFaces : Constraint
         dim = 3;
 
         faceIndices = new int[facesNum, verticesPerFace];
+        
+        // Populate faceIndices by mapping each face's GameObjects to vertex indices
+        for (int f = 0; f < facesNum; f++)
+        {
+            var face = faces[f];
+            if (face == null) continue;
+            
+            faceIndices[f, 0] = ModelBuilderObject.Vertices.IndexOf(face.Item1);
+            faceIndices[f, 1] = ModelBuilderObject.Vertices.IndexOf(face.Item2);
+            faceIndices[f, 2] = ModelBuilderObject.Vertices.IndexOf(face.Item3);
+            faceIndices[f, 3] = ModelBuilderObject.Vertices.IndexOf(face.Item4);
+            
+            // Validate indices
+            for (int v = 0; v < verticesPerFace; v++)
+            {
+                if (faceIndices[f, v] < 0 || faceIndices[f, v] >= positionNum)
+                {
+                    Debug.LogError($"PlanarFaces: invalid vertex index {faceIndices[f, v]} for face {f}, vertex {v}");
+                }
+            }
+        }
     }
 
     // Jacobi eigenvalue algorithm for symmetric 3x3 matrices to get eigenvectors.
