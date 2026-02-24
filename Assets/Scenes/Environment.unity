@@ -148,7 +148,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17fdba3df7bc3a342b1a7cb7273cb85f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  minLength: 0.5
+  minLength: 0.3
   maxLength: 1
 --- !u!4 &26547049
 Transform:
@@ -211,16 +211,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   modelBuilder: {fileID: 1831939720}
-  constraintDampingRate: 25
-  constraintSpringRate: 25
-  actuationForceScale: 0
-  explicitForceScale: 0.1
-  reactionForceScale: 0
-  passiveForceScale: 0
+  constraintDampingRate: 50
+  constraintSpringRate: 50
+  actuationForceScale: 0.1
+  explicitForceScale: 1
+  reactionForceScale: 1
+  passiveForceScale: 1
   passiveEdgeForceScale: 1
-  externalForceScale: -0.1
+  externalForceScale: 0
   constraints:
+  - {fileID: 1358163025}
   - {fileID: 703351243}
+  - {fileID: 26547048}
+  - {fileID: 1371808492}
 --- !u!1 &545238694
 GameObject:
   m_ObjectHideFlags: 0
@@ -965,7 +968,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 40651e74cabb0d94e9f6eaca6e984588, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cellCount: 6
+  cellCount: 3
   cellPrefab: {fileID: 2981545005587751070, guid: 44e84bb8af3b75b479db537c5ba9c08e, type: 3}
 --- !u!4 &1831939721
 Transform:

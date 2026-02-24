@@ -474,10 +474,10 @@ public class Cell : MonoBehaviour
         edges.Add(Tuple.Create(Sphere2, Sphere6));
         edges.Add(Tuple.Create(Sphere3, Sphere7));
         edges.Add(Tuple.Create(Sphere4, Sphere8));
-        edges.Add(Tuple.Create(Sphere1, Sphere7));
-        edges.Add(Tuple.Create(Sphere2, Sphere8));
-        edges.Add(Tuple.Create(Sphere3, Sphere5));
-        edges.Add(Tuple.Create(Sphere4, Sphere6));
+        // edges.Add(Tuple.Create(Sphere1, Sphere7));
+        // edges.Add(Tuple.Create(Sphere2, Sphere8));
+        // edges.Add(Tuple.Create(Sphere3, Sphere5));
+        // edges.Add(Tuple.Create(Sphere4, Sphere6));
         edges.Add(Tuple.Create(Sphere5, Sphere6));
         edges.Add(Tuple.Create(Sphere6, Sphere7));
         edges.Add(Tuple.Create(Sphere7, Sphere8));

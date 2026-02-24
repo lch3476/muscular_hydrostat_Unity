@@ -32,6 +32,35 @@ public static class Utility
         return numerator / denominator;
     }
 
+    public static float[,] Covariance3(Vector3[] mat)
+    {
+        int n = mat.Length;
+        int degreeOfFreedom = Mathf.Max(1, n - 1);
+        float[,] covariance = new float[3, 3];
+        for (int i = 0; i < n; i++)
+        {
+            Vector3 r = mat[i];
+            covariance[0, 0] += r.x * r.x;
+            covariance[0, 1] += r.x * r.y;
+            covariance[0, 2] += r.x * r.z;
+            covariance[1, 0] += r.y * r.x;
+            covariance[1, 1] += r.y * r.y;
+            covariance[1, 2] += r.y * r.z;
+            covariance[2, 0] += r.z * r.x;
+            covariance[2, 1] += r.z * r.y;
+            covariance[2, 2] += r.z * r.z;
+        }
+        float inv = 1f / degreeOfFreedom;
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                covariance[i, j] *= inv;
+            }
+        }
+        return covariance;
+    }
+
     public static (float[,], float[,]) StateToPosVel(float[] state)
     {
         int totalLength = state.Length;
@@ -676,6 +705,52 @@ public static class Utility
         }
 
         return (grid1, grid2);
+    }
+
+    // Creates a jagged array with the given dimensions.
+    public static object CreateJaggedArray<T>(params int[] lengths)
+    {
+        if (lengths == null || lengths.Length == 0)
+        {
+            Debug.LogError("CreateJaggedArray: lengths is null or empty.");
+            return null;
+        }
+
+        for (int i = 0; i < lengths.Length; i++)
+        {
+            if (lengths[i] < 0)
+            {
+                Debug.LogError("CreateJaggedArray: lengths must be non-negative.");
+                return null;
+            }
+        }
+
+        return CreateJaggedArrayRecursive(typeof(T), lengths, 0);
+    }
+
+    private static object CreateJaggedArrayRecursive(Type elementType, int[] lengths, int index)
+    {
+        int len = lengths[index];
+        if (index == lengths.Length - 1)
+        {
+            return Array.CreateInstance(elementType, len);
+        }
+
+        Type subArrayType = elementType;
+        int remainingDims = lengths.Length - index - 1;
+        for (int i = 0; i < remainingDims; i++)
+        {
+            subArrayType = subArrayType.MakeArrayType();
+        }
+
+        Array array = Array.CreateInstance(subArrayType, len);
+        for (int i = 0; i < len; i++)
+        {
+            object subArray = CreateJaggedArrayRecursive(elementType, lengths, index + 1);
+            array.SetValue(subArray, i);
+        }
+
+        return array;
     }
 
     // Extract a column from a 2D array (equivalent to arr[:, colIndex] in NumPy)
