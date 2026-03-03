@@ -8,7 +8,6 @@ using System.Linq;
 // formed by an apex and triangulated faces, and the Jacobian and its time derivative.
 public class ConstantVolume : Constraint
 {
-    // Per-cell storage
     private float[] initialVolumes;
 
     public override void InitializeConstraint()
@@ -24,8 +23,6 @@ public class ConstantVolume : Constraint
         }
     }
 
-    // (Removed local Determinant3 helper - using Utility.Determinant3x3 instead)
-
     public override (float[] constraints, float[,,] jacobians, float[,,] jacobianDerivative)
     CalculateConstraints()
     {
@@ -40,10 +37,9 @@ public class ConstantVolume : Constraint
 
         var cells = ModelBuilderObject.Cells;
         int cellCount = cells.Count;
-        int n = position.Length; // total vertices
+        int n = position.Length;
 
         float[] constraints = new float[cellCount];
-        // 3 is dimensions
         float[,,] jacobians = new float[cellCount, n, 3];
         float[,,] jacobianDerivative = new float[cellCount, n, 3];
 
@@ -51,7 +47,6 @@ public class ConstantVolume : Constraint
         {
             Cell cell = cells[i];
 
-            // Determine apex global index and apex state
             int apexIdx = -1;
             Vector3 apexPosition = Vector3.zero;
             Vector3 apexVelocity = Vector3.zero;
@@ -68,7 +63,6 @@ public class ConstantVolume : Constraint
 
             float volumeSum = 0f;
 
-            // accumulate cofactors per vertex locally, then write into jacobians
             Vector3[] localJacobian = new Vector3[n];
             Vector3[] localJacobianDerivative = new Vector3[n];
 
@@ -105,20 +99,17 @@ public class ConstantVolume : Constraint
                 Vector3 relativeVelocity1 = velocity[triangleVertex2Index] - apexVelocity;
                 Vector3 relativeVelocity2 = velocity[triangleVertex3Index] - apexVelocity;
 
-                float tetVol = Utility.Determinant3x3(relativePosition0, relativePosition1, relativePosition2);
-                volumeSum += tetVol;
+                float tetrahedronVolume = Utility.Determinant3x3(relativePosition0, relativePosition1, relativePosition2);
+                volumeSum += tetrahedronVolume;
 
-                // Cofactors: cross products
                 Vector3 cofactor0 = Vector3.Cross(relativePosition1, relativePosition2);
                 Vector3 cofactor1 = Vector3.Cross(relativePosition2, relativePosition0);
                 Vector3 cofactor2 = Vector3.Cross(relativePosition0, relativePosition1);
 
-                // Time derivatives of cofactors
                 Vector3 cofactorDerivative0 = Vector3.Cross(relativeVelocity1, relativePosition2) + Vector3.Cross(relativePosition1, relativeVelocity2);
                 Vector3 cofactorDerivative1 = Vector3.Cross(relativeVelocity2, relativePosition0) + Vector3.Cross(relativePosition2, relativeVelocity0);
                 Vector3 cofactorDerivative2 = Vector3.Cross(relativeVelocity0, relativePosition1) + Vector3.Cross(relativePosition0, relativeVelocity1);
 
-                // Accumulate at triangle vertex indices
                 localJacobian[triangleVertex1Index] += cofactor0;
                 localJacobian[triangleVertex2Index] += cofactor1;
                 localJacobian[triangleVertex3Index] += cofactor2;
@@ -128,10 +119,8 @@ public class ConstantVolume : Constraint
                 localJacobianDerivative[triangleVertex3Index] += cofactorDerivative2;
             }
 
-            // Constraint value
             constraints[i] = volumeSum - initialVolumes[i];
 
-            // Apex contribution is negative sum of cofactors over triangle vertices
             Vector3 sumCofactor = Vector3.zero;
             Vector3 sumCofactorDerivative = Vector3.zero;
             for (int j = 0; j < n; j++)
@@ -148,7 +137,6 @@ public class ConstantVolume : Constraint
                 localJacobianDerivative[apexIdx] = -sumCofactorDerivative;
             }
 
-            // Write localJac into jacobians[c, :, :]
             for (int j = 0; j < n; j++)
             {
                 if (localJacobian[j] != Vector3.zero)
