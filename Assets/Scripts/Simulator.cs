@@ -1,11 +1,13 @@
 using System.Collections.Generic;
+using UnityEditor.Search;
 using UnityEngine;
 
 // A class that corresponding to Actor class of actor.py
 
 public class Simulator : MonoBehaviour
 {
-
+    public static int DIM = 3; // dimension of the system (3D)
+    
     [SerializeField] Dynamic model;
     // [SerializeField] Policy policy;
 
