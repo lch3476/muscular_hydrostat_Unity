@@ -44,7 +44,6 @@ public class EdgeLength : Constraint
 
         float[] constraints = new float[numConstrained];
 
-        // Calculate length differences from limits
         float[,] lengthDiffs = new float[numConstrained, 2];
         for (int i = 0; i < numConstrained; i++)
         {
@@ -62,7 +61,7 @@ public class EdgeLength : Constraint
             minOrMax[i] = (absDiffMin < absDiffMax) ? 0 : 1;
         }
 
-        // Select constraint values: constraints = length_diffs[np.arange(num_constrained), min_or_max]
+        // Select constraint values based on which limit is closer for each edge
         for (int i = 0; i < numConstrained; i++)
         {
             constraints[i] = lengthDiffs[i, minOrMax[i]];
@@ -75,7 +74,6 @@ public class EdgeLength : Constraint
         {
             int edgeIdx = constrainedEdgeIndices[constrainedIdx];
 
-            // Jacobain calculation for edge length constraint
             GameObject edgePoint1 = ModelBuilderObject.Edges[edgeIdx].Item1;
             GameObject edgePoint2 = ModelBuilderObject.Edges[edgeIdx].Item2;
             int edgePoint1Index = ModelBuilderObject.Vertices.IndexOf(edgePoint1);
