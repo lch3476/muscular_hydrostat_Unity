@@ -35,18 +35,17 @@ public class ConstantVolume : Constraint
             return (null, null, null);
         }
 
-        // Current positions and velocities (global)
-        Vector3[] pos = ModelBuilderObject.GetPositions();
-        Vector3[] vel = ModelBuilderObject.Velocities ?? new Vector3[pos.Length];
+        Vector3[] position = ModelBuilderObject.GetPositions();
+        Vector3[] velocity = ModelBuilderObject.Velocities ?? new Vector3[position.Length];
 
         var cells = ModelBuilderObject.Cells;
         int cellCount = cells.Count;
-        int n = pos.Length; // total vertices
+        int n = position.Length; // total vertices
 
         float[] constraints = new float[cellCount];
         // 3 is dimensions
         float[,,] jacobians = new float[cellCount, n, 3];
-        float[,,] djac_dts = new float[cellCount, n, 3];
+        float[,,] jacobianDerivative = new float[cellCount, n, 3];
 
         for (int i = 0; i < cellCount; i++)
         {
@@ -54,119 +53,119 @@ public class ConstantVolume : Constraint
 
             // Determine apex global index and apex state
             int apexIdx = -1;
-            Vector3 apexPos = Vector3.zero;
-            Vector3 apexVel = Vector3.zero;
+            Vector3 apexPosition = Vector3.zero;
+            Vector3 apexVelocity = Vector3.zero;
             if (cell.Vertices != null && cell.Vertices.Count > 0)
             {
-                var apexGO = cell.Vertices[0];
-                apexIdx = ModelBuilderObject.Vertices.IndexOf(apexGO);
+                var apexVertex = cell.Vertices[0];
+                apexIdx = ModelBuilderObject.Vertices.IndexOf(apexVertex);
                 if (apexIdx >= 0 && apexIdx < n)
                 {
-                    apexPos = pos[apexIdx];
-                    apexVel = vel.Length > apexIdx ? vel[apexIdx] : Vector3.zero;
+                    apexPosition = position[apexIdx];
+                    apexVelocity = velocity.Length > apexIdx ? velocity[apexIdx] : Vector3.zero;
                 }
             }
 
-            float sumVol = 0f;
+            float volumeSum = 0f;
 
             // accumulate cofactors per vertex locally, then write into jacobians
-            Vector3[] localJac = new Vector3[n]; // sparse usage: only some indices used
-            Vector3[] localDJac = new Vector3[n];
+            Vector3[] localJacobian = new Vector3[n];
+            Vector3[] localJacobianDerivative = new Vector3[n];
 
             // Iterate triangles via cell.Triangles to get GameObject -> global indices
-            var tris = cell.Triangles; // List<Tuple<GameObject, GameObject, GameObject>>
-            for (int t = 0; t < tris.Count; t++)
+            var triangles = cell.Triangles;
+            foreach (var triangle in triangles)
             {
-                var tri = tris[t];
-                if (tri == null) continue;
-                var g0 = tri.Item1;
-                var g1 = tri.Item2;
-                var g2 = tri.Item3;
+                if (triangle == null) continue;
+                var triangleVertex1 = triangle.Item1;
+                var triangleVertex2 = triangle.Item2;
+                var triangleVertex3 = triangle.Item3;
 
-                int i0 = ModelBuilderObject.Vertices.IndexOf(g0);
-                int i1 = ModelBuilderObject.Vertices.IndexOf(g1);
-                int i2 = ModelBuilderObject.Vertices.IndexOf(g2);
+                int triangleVertex1Index = ModelBuilderObject.Vertices.IndexOf(triangleVertex1);
+                int triangleVertex2Index = ModelBuilderObject.Vertices.IndexOf(triangleVertex2);
+                int triangleVertex3Index = ModelBuilderObject.Vertices.IndexOf(triangleVertex3);
 
                 // validate triangle indices
-                if (i0 < 0 || i1 < 0 || i2 < 0 || i0 >= n || i1 >= n || i2 >= n)
+                if (triangleVertex1Index < 0 ||
+                triangleVertex2Index < 0 ||
+                triangleVertex3Index < 0 ||
+                triangleVertex1Index >= n ||
+                triangleVertex2Index >= n ||
+                triangleVertex3Index >= n)
                 {
-                    Debug.LogWarning($"ConstantVolume.CalculateConstraints: skipping invalid triangle indices in cell {i}, triangle {t}.");
+                    Debug.LogWarning($"ConstantVolume.CalculateConstraints: skipping invalid triangle indices in cell {i}, triangle {triangle}.");
                     continue;
                 }
 
-                Vector3 r0 = pos[i0] - apexPos;
-                Vector3 r1 = pos[i1] - apexPos;
-                Vector3 r2 = pos[i2] - apexPos;
+                Vector3 relativePosition0 = position[triangleVertex1Index] - apexPosition;
+                Vector3 relativePosition1 = position[triangleVertex2Index] - apexPosition;
+                Vector3 relativePosition2 = position[triangleVertex3Index] - apexPosition;
 
-                Vector3 v0 = vel[i0] - apexVel;
-                Vector3 v1 = vel[i1] - apexVel;
-                Vector3 v2 = vel[i2] - apexVel;
+                Vector3 relativeVelocity0 = velocity[triangleVertex1Index] - apexVelocity;
+                Vector3 relativeVelocity1 = velocity[triangleVertex2Index] - apexVelocity;
+                Vector3 relativeVelocity2 = velocity[triangleVertex3Index] - apexVelocity;
 
-                float tetVol = Utility.Determinant3x3(r0, r1, r2);
-                sumVol += tetVol;
+                float tetVol = Utility.Determinant3x3(relativePosition0, relativePosition1, relativePosition2);
+                volumeSum += tetVol;
 
                 // Cofactors: cross products
-                Vector3 co0 = Vector3.Cross(r1, r2);
-                Vector3 co1 = Vector3.Cross(r2, r0);
-                Vector3 co2 = Vector3.Cross(r0, r1);
+                Vector3 cofactor0 = Vector3.Cross(relativePosition1, relativePosition2);
+                Vector3 cofactor1 = Vector3.Cross(relativePosition2, relativePosition0);
+                Vector3 cofactor2 = Vector3.Cross(relativePosition0, relativePosition1);
 
                 // Time derivatives of cofactors
-                Vector3 dco0 = Vector3.Cross(v1, r2) + Vector3.Cross(r1, v2);
-                Vector3 dco1 = Vector3.Cross(v2, r0) + Vector3.Cross(r2, v0);
-                Vector3 dco2 = Vector3.Cross(v0, r1) + Vector3.Cross(r0, v1);
+                Vector3 cofactorDerivative0 = Vector3.Cross(relativeVelocity1, relativePosition2) + Vector3.Cross(relativePosition1, relativeVelocity2);
+                Vector3 cofactorDerivative1 = Vector3.Cross(relativeVelocity2, relativePosition0) + Vector3.Cross(relativePosition2, relativeVelocity0);
+                Vector3 cofactorDerivative2 = Vector3.Cross(relativeVelocity0, relativePosition1) + Vector3.Cross(relativePosition0, relativeVelocity1);
 
                 // Accumulate at triangle vertex indices
-                localJac[i0] += co0;
-                localJac[i1] += co1;
-                localJac[i2] += co2;
+                localJacobian[triangleVertex1Index] += cofactor0;
+                localJacobian[triangleVertex2Index] += cofactor1;
+                localJacobian[triangleVertex3Index] += cofactor2;
 
-                localDJac[i0] += dco0;
-                localDJac[i1] += dco1;
-                localDJac[i2] += dco2;
+                localJacobianDerivative[triangleVertex1Index] += cofactorDerivative0;
+                localJacobianDerivative[triangleVertex2Index] += cofactorDerivative1;
+                localJacobianDerivative[triangleVertex3Index] += cofactorDerivative2;
             }
 
             // Constraint value
-            constraints[i] = sumVol - initialVolumes[i];
+            constraints[i] = volumeSum - initialVolumes[i];
 
             // Apex contribution is negative sum of cofactors over triangle vertices
-            Vector3 sumCof = Vector3.zero;
-            Vector3 sumDCof = Vector3.zero;
-            for (int vi = 0; vi < n; vi++)
+            Vector3 sumCofactor = Vector3.zero;
+            Vector3 sumCofactorDerivative = Vector3.zero;
+            for (int j = 0; j < n; j++)
             {
-                if (localJac[vi] != Vector3.zero)
-                {
-                    sumCof += localJac[vi];
-                }
-                if (localDJac[vi] != Vector3.zero)
-                {
-                    sumDCof += localDJac[vi];
-                }
+                if (localJacobian[j] != Vector3.zero)
+                    sumCofactor += localJacobian[j];
+                if (localJacobianDerivative[j] != Vector3.zero)
+                    sumCofactorDerivative += localJacobianDerivative[j];
             }
 
             if (apexIdx >= 0)
             {
-                localJac[apexIdx] = -sumCof;
-                localDJac[apexIdx] = -sumDCof;
+                localJacobian[apexIdx] = -sumCofactor;
+                localJacobianDerivative[apexIdx] = -sumCofactorDerivative;
             }
 
             // Write localJac into jacobians[c, :, :]
-            for (int vi = 0; vi < n; vi++)
+            for (int j = 0; j < n; j++)
             {
-                if (localJac[vi] != Vector3.zero)
+                if (localJacobian[j] != Vector3.zero)
                 {
-                    jacobians[i, vi, 0] = localJac[vi].x;
-                    jacobians[i, vi, 1] = localJac[vi].y;
-                    jacobians[i, vi, 2] = localJac[vi].z;
+                    jacobians[i, j, 0] = localJacobian[j].x;
+                    jacobians[i, j, 1] = localJacobian[j].y;
+                    jacobians[i, j, 2] = localJacobian[j].z;
                 }
-                if (localDJac[vi] != Vector3.zero)
+                if (localJacobianDerivative[j] != Vector3.zero)
                 {
-                    djac_dts[i, vi, 0] = localDJac[vi].x;
-                    djac_dts[i, vi, 1] = localDJac[vi].y;
-                    djac_dts[i, vi, 2] = localDJac[vi].z;
+                    jacobianDerivative[i, j, 0] = localJacobianDerivative[j].x;
+                    jacobianDerivative[i, j, 1] = localJacobianDerivative[j].y;
+                    jacobianDerivative[i, j, 2] = localJacobianDerivative[j].z;
                 }
             }
         }
 
-        return (constraints, jacobians, djac_dts);
+        return (constraints, jacobians, jacobianDerivative);
     }
 }
