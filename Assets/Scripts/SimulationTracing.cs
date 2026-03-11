@@ -21,6 +21,8 @@ public class SimulationTracing : MonoBehaviour
         }
 
         string traceText = "";
+
+        traceText += $"Elapsed Time: {Time.time:F2} seconds\n";
         foreach (var constraint in constrainedDynamic.Constraints)
         {
             traceText += constraint.GenerateDataText() + "\n";
