@@ -523,8 +523,6 @@ public class Cell : MonoBehaviour
         }
     }
 
-    // Return the current world-space positions of each triangle's vertices as a jagged array.
-    // The returned array has shape [t][3] where t is number of triangles.
     public Vector3[][] GetTrianglePositions()
     {
         if (triangles == null) return new Vector3[0][];
@@ -541,8 +539,6 @@ public class Cell : MonoBehaviour
         return result;
     }
 
-    // Compute the cell volume by summing tetrahedron volumes formed by the apex (first vertex)
-    // and each triangulated face of the cell.
     public float CalcVolume()
     {
         Vector3 apexPos = (Vertices != null && Vertices.Count > 0) ? Vertices[0].transform.position : Vector3.zero;

@@ -9,6 +9,7 @@ using System.Linq;
 public class ConstantVolume : Constraint
 {
     private float[] initialVolumes;
+    private float initialTotalVolume;
 
     public override void InitializeConstraint()
     {
@@ -21,6 +22,8 @@ public class ConstantVolume : Constraint
             Cell cell = cells[i];
             initialVolumes[i] = cell.CalcVolume();
         }
+
+        initialTotalVolume = initialVolumes.Sum();
     }
 
     public override (float[] constraints, float[,,] jacobians, float[,,] jacobianDerivative)
@@ -155,5 +158,12 @@ public class ConstantVolume : Constraint
         }
 
         return (constraints, jacobians, jacobianDerivative);
+    }
+
+    public override string GenerateDataText()
+    {
+        return $"Initial Total Volume: {Math.Abs(initialTotalVolume)}\n" +
+        $"Current Total Volume: {Math.Abs(ModelBuilderObject.CalcTotalVolume())}\n" +
+        $"Volume Difference: {Math.Abs(ModelBuilderObject.CalcTotalVolume() - initialTotalVolume)}";
     }
 }

@@ -10,6 +10,12 @@ public class PlanarFaces : Constraint
     int positionNum; // N
     int dim; // D
 
+    // Global planarity score across all faces.
+    // Computed as: 1 - mean(lambda0 / (lambda0 + lambda1 + lambda2 + eps)),
+    // where lambda0 is the smallest covariance eigenvalue of each face.
+    // Higher value means more planar overall (closer to 1 is flatter).
+    float cachedGlobalPlanarityScore;
+
 
     public override void InitializeConstraint()
     {   
@@ -182,7 +188,8 @@ public class PlanarFaces : Constraint
         }
     }
 
-    private (float[][][] covarianceMatrices, float[][][][][] covariancePositionDerivative, float[][][] covarianceTimeDerivative, float[][][][][] covarianceSecondPositionTimeDerivative) CalcCovarianceVariables(
+    private (float[][][] covarianceMatrices, float[][][][][] covariancePositionDerivative, float[][][] covarianceTimeDerivative, float[][][][][] covarianceSecondPositionTimeDerivative)
+    CalcCovarianceVariables(
         Vector3[,] relativePositions,
         Vector3[,] relativeVelocities,
         float[][][][][] relativePositionDerivative)
@@ -290,7 +297,8 @@ public class PlanarFaces : Constraint
         return (covarianceMatrices, covariancePositionDerivative, covarianceTimeDerivative, covarianceSecondPositionTimeDerivative);
     }
 
-    private (float[][] normals, float[][][][] normalPositionDerivative, float[][] normalTimeDerivative, float[][][][] normalSecondPositionTimeDerivative) CalcNormalVariables(
+    private (float[][] normals, float[][][][] normalPositionDerivative, float[][] normalTimeDerivative, float[][][][] normalSecondPositionTimeDerivative)
+    CalcNormalVariables(
         float[][][] covarianceMatrices,
         float[][][][][] covariancePositionDerivative,
         float[][][] covarianceTimeDerivative,
@@ -325,6 +333,19 @@ public class PlanarFaces : Constraint
                 }
             }
         }
+
+        float scoreSum = 0f;
+        const float eps = 1e-8f;
+        for (int f = 0; f < faces; f++)
+        {
+            float l0 = eigenvalues[f][0];
+            float l1 = eigenvalues[f][1];
+            float l2 = eigenvalues[f][2];
+            float denom = l0 + l1 + l2;
+            scoreSum += l0 / (denom + eps);
+        }
+        float meanNonPlanarity = faces > 0 ? scoreSum / faces : 0f;
+        cachedGlobalPlanarityScore = 1f - meanNonPlanarity;
 
         float[][] normals = (float[][])Utility.CreateJaggedArray<float>(faces, dim);
         for (int f = 0; f < faces; f++)
@@ -546,6 +567,11 @@ public class PlanarFaces : Constraint
         }
 
         return contractionResult;
+    }
+
+    public override string GenerateDataText()
+    {
+        return $"Global Planarity: {cachedGlobalPlanarityScore}";
     }
 
     public override (float[] constraints, float[,,] jacobians, float[,,] jacobianDerivative) CalculateConstraints()

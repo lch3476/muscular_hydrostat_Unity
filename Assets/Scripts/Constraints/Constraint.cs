@@ -56,4 +56,6 @@ public abstract class Constraint : MonoBehaviour
     //     The third is the time derivative of the Jacobian which is of the same shape
     //     as the Jacobian
     public abstract (float[] constraints, float[,,] jacobians, float[,,] jacobianDerivative) CalculateConstraints();
+
+    public abstract string GenerateDataText();
 }

@@ -182,4 +182,17 @@ public class ArmBuilder : ModelBuilder
             }
         }
     }
+
+    public override float CalcTotalVolume()
+    {
+        float totalVolume = 0.0f;
+        for (int i = 0; i < Cells.Count; ++i)
+        {
+            if (Cells[i] != null)
+            {
+                totalVolume += Cells[i].CalcVolume();
+            }
+        }
+        return totalVolume;
+    }
 }

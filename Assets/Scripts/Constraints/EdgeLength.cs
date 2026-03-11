@@ -141,4 +141,39 @@ public class EdgeLength : Constraint
 
         return constrainedEdgeIndices;
     }
+
+    private (float minEdgeLength, float maxEdgeLength) CalcMinMaxEdgeLengths()
+    {
+        if (ModelBuilderObject == null || ModelBuilderObject.Edges == null || ModelBuilderObject.Edges.Count == 0)
+        {
+            Debug.LogWarning("EdgeLength.CalcMinMaxEdgeLengths: No edges available");
+            return (0f, 0f);
+        }
+
+        float[] edgeLengths = CalcEdgeLengths();
+        
+        if (edgeLengths.Length == 0)
+        {
+            return (0f, 0f);
+        }
+
+        float minEdgeLength = edgeLengths[0];
+        float maxEdgeLength = edgeLengths[0];
+
+        for (int i = 1; i < edgeLengths.Length; i++)
+        {
+            if (edgeLengths[i] < minEdgeLength)
+                minEdgeLength = edgeLengths[i];
+            if (edgeLengths[i] > maxEdgeLength)
+                maxEdgeLength = edgeLengths[i];
+        }
+
+        return (minEdgeLength, maxEdgeLength);
+    }
+
+    public override string GenerateDataText()
+    {
+        var (minEdgeLength, maxEdgeLength) = CalcMinMaxEdgeLengths();
+        return $"Minimum Edge Length: {minEdgeLength}\n" + $"Maximum Edge Length: {maxEdgeLength}";
+    }
 }

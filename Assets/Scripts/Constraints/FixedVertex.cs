@@ -78,5 +78,25 @@ public class FixedVertex : Constraint
         }
 
         return positions;
-    }   
+    }
+
+    public override string GenerateDataText()
+    {
+        List<string> vertexInfo = new List<string>();
+        for (int i = 0; i < fixedVertices.Length; i++)
+        {
+            if (fixedVertices[i] != null)
+            {
+                string cellName = fixedVertices[i].transform.parent != null 
+                    ? fixedVertices[i].transform.parent.name : "NoCell";
+                string vertexName = fixedVertices[i].name;
+                vertexInfo.Add($"{cellName}_{vertexName}");
+            }
+            else
+            {
+                vertexInfo.Add("null");
+            }
+        }
+        return $"Fixed Vertices:\n    {string.Join("\n    ", vertexInfo)}";
+    }
 }

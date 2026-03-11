@@ -95,6 +95,7 @@ public abstract class ModelBuilder : MonoBehaviour
     protected abstract void InitMasses();
     protected abstract void InitVertexDamping();
     protected abstract void InitEdgeDamping();
+    public abstract float CalcTotalVolume();
 
     public Vector3[] GetPositions()
     {

@@ -38,6 +38,8 @@ public abstract class ConstrainedDynamic : Dynamic
     public float ExternalForceScale { get { return externalForceScale; } }
 
     [SerializeField] List<Constraint> constraints;
+    public List<Constraint> Constraints { get { return constraints; } }
+
     private float[] invMasses;
     public float[] InvMasses { get { return invMasses; } set { invMasses = value; } }
     private Vector3[] externalForces;

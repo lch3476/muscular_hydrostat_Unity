@@ -43,7 +43,7 @@ public class Arm : ConstrainedDynamic
     protected override void InitExternalForces()
     {
         ExternalForces = new Vector3[ModelBuilder.Vertices.Count];
-        ExternalForces[0] = new Vector3(1f, 0f, 0f); // gravity
+        ExternalForces[5] = new Vector3(1f, 0f, 0f); // gravity
         ExternalForces = Utility.MatrixMultiply<Vector3>(ExternalForces, ExternalForceScale);
     }
 
@@ -147,7 +147,6 @@ public class Arm : ConstrainedDynamic
 
         var edges = ModelBuilder.Edges;
         int m = edges.Count;
-
 
         for (int e = 0; e < m; e++)
         {
