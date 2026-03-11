@@ -213,12 +213,12 @@ MonoBehaviour:
   modelBuilder: {fileID: 1831939720}
   constraintDampingRate: 50
   constraintSpringRate: 25
-  actuationForceScale: 0
+  actuationForceScale: 0.1
   explicitForceScale: 0.1
   reactionForceScale: 1
-  passiveForceScale: 0
+  passiveForceScale: 0.1
   passiveEdgeForceScale: 1
-  externalForceScale: 1
+  externalForceScale: 0
   constraints:
   - {fileID: 1358163025}
   - {fileID: 703351243}
@@ -1299,7 +1299,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 40651e74cabb0d94e9f6eaca6e984588, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cellCount: 5
+  cellCount: 3
   cellPrefab: {fileID: 2981545005587751070, guid: 44e84bb8af3b75b479db537c5ba9c08e, type: 3}
 --- !u!4 &1831939721
 Transform:
@@ -1345,6 +1345,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4ac47877f67927a4b9333081400f386d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  defaultControlInput: 1
   model: {fileID: 492245704}
 --- !u!4 &1865555080
 Transform:

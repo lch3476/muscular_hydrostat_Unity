@@ -7,6 +7,7 @@ using UnityEngine;
 public class Simulator : MonoBehaviour
 {
     public static int DIM = 3; // dimension of the system (3D)
+    [SerializeField] float defaultControlInput = 0f;
     
     [SerializeField] Dynamic model;
     // [SerializeField] Policy policy;
@@ -51,10 +52,8 @@ public class Simulator : MonoBehaviour
         // Debug.Log("Sensing: " + (Time.time - lastTime));
         // lastTime = Time.time;
 
-        // temporary input to 
-        //float[] controlInputs = new float[model.NumControls];
-        Debug.Log("Model Num Controls: " + model.NumControls);
-        float[] controlInputs = Utility.CreateInitializedArray(model.NumControls, 5f);
+        // Use a configurable baseline input so the model is not constantly actuated by default.
+        float[] controlInputs = Utility.CreateInitializedArray(model.NumControls, defaultControlInput);
         // TODO: implement environment and sensor
         // control = CalculateControl(t);
         // Debug.Log("Control: " + (Time.time - lastTime));

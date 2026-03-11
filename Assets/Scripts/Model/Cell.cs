@@ -501,18 +501,19 @@ public class Cell : MonoBehaviour
     //     a tx3 jnp.ndarray of vertex indices for all t triangles
     void InitTriangulatedFaces()
     {
+        triangles.Clear();
+
         if (faces != null)
         {
             foreach (var face in faces)
             {
-                // Skip the top face by checking if the face contains any of the top vertices (sphere1-4)
-                if (face.Item1 == sphere1 || face.Item2 == sphere1 || face.Item3 == sphere1 || face.Item4 == sphere1 ||
-                    face.Item1 == sphere2 || face.Item2 == sphere2 || face.Item3 == sphere2 || face.Item4 == sphere2 ||
-                    face.Item1 == sphere3 || face.Item2 == sphere3 || face.Item3 == sphere3 || face.Item4 == sphere3 ||
-                    face.Item1 == sphere4 || face.Item2 == sphere4 || face.Item3 == sphere4 || face.Item4 == sphere4)
-                {
-                    continue;
-                }
+                // Skip only the actual top face. Side faces can include top vertices and must be triangulated.
+                bool isTopFace =
+                    (face.Item1 == sphere1 && face.Item2 == sphere4 && face.Item3 == sphere3 && face.Item4 == sphere2) ||
+                    (face.Item1 == sphere2 && face.Item2 == sphere3 && face.Item3 == sphere4 && face.Item4 == sphere1);
+
+                if (isTopFace) continue;
+
                 triangles.Add(Tuple.Create(face.Item1, face.Item2, face.Item3));
                 triangles.Add(Tuple.Create(face.Item1, face.Item3, face.Item4));
             }
