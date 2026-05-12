@@ -55,6 +55,7 @@ public abstract class ModelBuilder : MonoBehaviour
         InitEdges();
         InitFaces();
         InitEdgeDamping();
+        SetAllDampingToZero();
     }
 
     public void PrintDebugInfo()
@@ -84,6 +85,25 @@ public abstract class ModelBuilder : MonoBehaviour
                      $"Indices: [{i}, {j}]");
         }
         Debug.Log("=== End Debug Info ===\n");
+    }
+
+    public void SetAllDampingToZero()
+    {
+        if (vertexDamping != null)
+        {
+            for (int i = 0; i < vertexDamping.Count; i++)
+            {
+                vertexDamping[i] = 0f;
+            }
+        }
+
+        if (edgeDamping != null)
+        {
+            for (int i = 0; i < edgeDamping.Count; i++)
+            {
+                edgeDamping[i] = 0f;
+            }
+        }
     }
 
     // Abstract
