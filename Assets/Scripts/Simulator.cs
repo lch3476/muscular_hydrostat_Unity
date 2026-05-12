@@ -9,6 +9,10 @@ public class Simulator : MonoBehaviour
     public static int DIM = 3; // dimension of the system (3D)
     [SerializeField] float defaultControlInput = 0f;
     
+    [SerializeField] bool breakSingleCellActuationSymmetry = true;
+    [SerializeField] float singleCellControlModulation = 0.25f;
+    [SerializeField] float singleCellControlFrequency = 2f;
+    
     [SerializeField] Dynamic model;
     // [SerializeField] Policy policy;
 
@@ -52,8 +56,7 @@ public class Simulator : MonoBehaviour
         // Debug.Log("Sensing: " + (Time.time - lastTime));
         // lastTime = Time.time;
 
-        // Use a configurable baseline input so the model is not constantly actuated by default.
-        float[] controlInputs = Utility.CreateInitializedArray(model.NumControls, defaultControlInput);
+        float[] controlInputs = BuildDefaultControlInputs(t);
         // TODO: implement environment and sensor
         // control = CalculateControl(t);
         // Debug.Log("Control: " + (Time.time - lastTime));
@@ -106,5 +109,31 @@ public class Simulator : MonoBehaviour
         }
 
         state = model.ModelBuilder.GetState();
+    }
+
+    private float[] BuildDefaultControlInputs(float t)
+    {
+        float[] controlInputs = Utility.CreateInitializedArray(model.NumControls, defaultControlInput);
+
+        if (!breakSingleCellActuationSymmetry || model == null || model.ModelBuilder == null)
+        {
+            return controlInputs;
+        }
+
+        if (model.ModelBuilder.CellCount != 1 || model.NumControls <= 0)
+        {
+            return controlInputs;
+        }
+
+        // Single-cell arms can remain static under perfectly symmetric edge actuation.
+        // Add a small per-edge phase offset so net actuation is not identically symmetric.
+        for (int i = 0; i < controlInputs.Length; i++)
+        {
+            float phase = 0.5f * i;
+            float modulation = 1f + singleCellControlModulation * Mathf.Sin(singleCellControlFrequency * t + phase);
+            controlInputs[i] = defaultControlInput * modulation;
+        }
+
+        return controlInputs;
     }
 }
