@@ -37,7 +37,7 @@ public class Arm : ConstrainedDynamic
         }
         
         NumControls = ModelBuilder.Edges.Count;
-        Debug.Log($"InitNumControls: Set NumControls to {NumControls} (Edges count: {ModelBuilder.Edges.Count})");
+        // Debug.Log($"InitNumControls: Set NumControls to {NumControls} (Edges count: {ModelBuilder.Edges.Count})");
     }
 
     protected override void InitExternalForces()

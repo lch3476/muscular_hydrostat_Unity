@@ -36,7 +36,7 @@ public abstract class ModelBuilder : MonoBehaviour
 
     void Start()
     {
-        PrintDebugInfo();
+        //PrintDebugInfo();
     }
 
     // void Update()

@@ -1299,7 +1299,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 40651e74cabb0d94e9f6eaca6e984588, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cellCount: 3
+  cellCount: 4
   cellPrefab: {fileID: 2981545005587751070, guid: 44e84bb8af3b75b479db537c5ba9c08e, type: 3}
 --- !u!4 &1831939721
 Transform:
@@ -1346,6 +1346,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   defaultControlInput: 1
+  breakSingleCellActuationSymmetry: 1
+  singleCellControlModulation: 0.25
+  singleCellControlFrequency: 2
   model: {fileID: 492245704}
 --- !u!4 &1865555080
 Transform:
@@ -1357,6 +1360,55 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 6.71393, y: 0.15, z: 3.9759}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2094349091
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2094349093}
+  - component: {fileID: 2094349092}
+  m_Layer: 0
+  m_Name: SelfCollisionDetector
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2094349092
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2094349091}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e13fd2f62c9137b45bcfc9c6ce0caa7b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  modelBuilder: {fileID: 1831939720}
+  insideTolerance: 0.0001
+  ignoreCellsContainingVertex: 1
+  logOnCollisionStateChange: 1
+  collisionColor: {r: 1, g: 0, b: 0, a: 1}
+--- !u!4 &2094349093
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2094349091}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.31461, y: 3.6884, z: 1.19265}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1378,3 +1430,4 @@ SceneRoots:
   - {fileID: 26547049}
   - {fileID: 1452354121}
   - {fileID: 912549203}
+  - {fileID: 2094349093}

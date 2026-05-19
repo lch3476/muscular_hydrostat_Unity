@@ -225,8 +225,8 @@ public abstract class ConstrainedDynamic : Dynamic
         // sw.Restart();
 
         Vector3[] explicitForces = CalcExplicitForces(actuationForces);
-        Utility.PrintArray(explicitForces, "Explicit Forces");
-        //Utility.PrintVectors(explicitForces, "Explicit Forces");
+        // Utility.PrintArray(explicitForces, "Explicit Forces");
+        // Utility.PrintVectors(explicitForces, "Explicit Forces");
         // sw.Restart();
 
         Vector3[] reactionForces = CalcReactionForces(state, explicitForces);
